@@ -1,4 +1,4 @@
-# MỘC — gian hàng quần áo
+# NT shop — gian hàng quần áo & giày dép
 
 Ba phần tách riêng, để sau này thêm giỏ hàng hay đơn hàng mà không phải viết lại từ đầu.
 
@@ -24,7 +24,7 @@ npm run dev
 
 Mở http://localhost:5173
 
-Tài khoản mẫu: `an@moc.local` / `123456`
+Tài khoản mẫu: `an@ntshop.local` / `123456`
 
 API lắng nghe cổng 4000. Ứng dụng web gọi `/api` qua Vite, nên trình duyệt không cần biết cổng đó.
 

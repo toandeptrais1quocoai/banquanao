@@ -622,7 +622,7 @@ try {
       `);
   }
 
-  const demoEmail = 'an@moc.local';
+  const demoEmail = 'an@ntshop.local';
   const demo = await new sql.Request(transaction)
     .input('email', sql.NVarChar(255), demoEmail)
     .query('SELECT Id FROM dbo.Users WHERE Email = @email');
@@ -636,7 +636,7 @@ try {
   }
 
   await transaction.commit();
-  console.log('Đã nạp danh mục, sản phẩm và tài khoản an@moc.local / 123456.');
+  console.log('Đã nạp danh mục, sản phẩm và tài khoản an@ntshop.local / 123456.');
   console.log('Chạy lại lệnh này sẽ không ghi đè món bạn đã sửa trong SSMS.');
 } catch (error) {
   await transaction.rollback();

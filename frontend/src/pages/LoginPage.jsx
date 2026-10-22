@@ -24,7 +24,7 @@ export default function LoginPage() {
   if (user) return <Navigate to="/" replace />;
 
   function fillDemo() {
-    setEmail('an@moc.local');
+    setEmail('an@ntshop.local');
     setPassword('123456');
     setErrors({});
     setFormError('');
@@ -87,7 +87,7 @@ export default function LoginPage() {
         <Link to="/dang-ky">Tạo tài khoản</Link>
       </div>
       <div className="demo">
-        <span>Tài khoản mẫu <code>an@moc.local</code> / <code>123456</code></span>
+        <span>Tài khoản mẫu <code>an@ntshop.local</code> / <code>123456</code></span>
         <button type="button" onClick={fillDemo}>Điền giúp</button>
       </div>
     </AuthLayout>
