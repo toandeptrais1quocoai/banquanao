@@ -7,11 +7,11 @@ const port = Number(process.env.PORT || 4000);
 try {
   await getPool();
   const app = createApp();
-  app.listen(port, () => {
+  app.listen(port, '0.0.0.0', () => {
     console.log(`API đang chạy tại http://localhost:${port}`);
   });
 } catch (error) {
-  console.error('Không nối được SQL Server. Kiểm tra dịch vụ SQL Server và database BanQuanAo.');
+  console.error('Không nối được SQL Server. Kiểm tra biến môi trường DB_* và database BanQuanAo.');
   console.error(error.message);
   process.exit(1);
 }

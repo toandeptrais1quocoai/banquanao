@@ -38,4 +38,36 @@ API lắng nghe cổng 4000. Ứng dụng web gọi `/api` qua Vite, nên trình
 
 ## Quên mật khẩu
 
-Shop chạy trên máy, chưa gắn hộp thư. Sau khi nhập email, mã 6 số hiện ngay trên trang và có hiệu lực 15 phút. Mã được lưu dạng băm trong bảng `PasswordResets`.
+Gắn Gmail App Password trong `backend/.env` (`GMAIL_USER`, `GMAIL_APP_PASSWORD`) để gửi OTP. Mã có hiệu lực 15 phút, lưu dạng băm trong `PasswordResets`.
+
+## Đưa web lên mạng (24/7)
+
+Stack đề xuất (miễn phí / gần miễn phí):
+
+| Phần | Dịch vụ |
+| --- | --- |
+| Database | [Azure SQL](https://azure.microsoft.com/free/) (Free SQL Database) |
+| API | [Render](https://render.com) (Web Service, root `backend`) |
+| Giao diện | [Vercel](https://vercel.com) (root `frontend`) |
+| Mã nguồn | GitHub (repo public hoặc private) |
+
+### 1. Azure SQL
+
+1. Tạo SQL Database tên `BanQuanAo`, ghi lại server `*.database.windows.net`, user, password.
+2. Networking: cho phép Azure services + thêm IP máy bạn (để chạy schema/seed).
+3. Mở Query editor, chạy `database/cloud-schema.sql`.
+4. Trên máy (trỏ `.env` sang Azure), chạy `npm run seed --prefix backend` rồi `node backend/src/seedColors.js`.
+
+### 2. GitHub + Render (API)
+
+1. Đẩy repo lên GitHub.
+2. Render → New → Blueprint / Web Service từ repo, hoặc dùng `render.yaml`.
+3. Env bắt buộc: `DB_SERVER`, `DB_USER`, `DB_PASSWORD`, `DB_NAME=BanQuanAo`, `DB_ENCRYPT=true`, `JWT_SECRET`, `CORS_ORIGIN` = URL Vercel (cập nhật sau bước 3).
+
+### 3. Vercel (frontend)
+
+1. Import repo, **Root Directory** = `frontend`.
+2. Env: `VITE_API_URL` = URL Render (ví dụ `https://nt-shop-api.onrender.com`, không có `/` cuối).
+3. Deploy xong, copy URL Vercel vào `CORS_ORIGIN` trên Render và redeploy API.
+
+Lưu ý: gói free Render có thể ngủ khi không ai vào (~1 phút lạnh khi mở lại). Tunnel Cloudflare chỉ dùng tạm khi máy bạn đang bật.

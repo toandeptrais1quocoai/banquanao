@@ -9,7 +9,11 @@ import { errorHandler } from './middleware/errorHandler.js';
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
-  app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }));
+  const origins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  app.use(cors({ origin: origins.length === 1 ? origins[0] : origins }));
   app.use(express.json());
 
   app.get('/api/health', (req, res) => {

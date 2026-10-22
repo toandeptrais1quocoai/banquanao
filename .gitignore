@@ -2,8 +2,11 @@ node_modules/
 dist/
 backend/.env
 backend/.env.*
-!.env.example
+!backend/.env.example
 frontend/dist/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
 *.log
 .DS_Store
 .vscode/
