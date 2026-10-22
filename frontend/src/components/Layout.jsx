@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { categories as fetchCategories } from '../api/client';
+import ChatBee from './ChatBee';
+import IntroSplash from './IntroSplash';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { givenName } from '../utils/format';
@@ -71,6 +73,7 @@ export default function Layout() {
 
   return (
     <div className="shell shop-shell">
+      <IntroSplash />
       <div className="promo-bar">
         <div className="wrap promo-bar-inner">
           <p>
@@ -191,6 +194,8 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      <ChatBee />
 
       <footer className="site-footer shop-footer">
         <div className="wrap footer-grid">

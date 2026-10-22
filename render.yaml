@@ -34,3 +34,9 @@ services:
         sync: false
       - key: MAIL_FROM_NAME
         value: NT shop
+      - key: VIETQR_BANK
+        sync: false
+      - key: VIETQR_ACCOUNT_NO
+        sync: false
+      - key: VIETQR_ACCOUNT_NAME
+        value: NT SHOP

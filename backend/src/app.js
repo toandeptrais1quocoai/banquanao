@@ -5,6 +5,7 @@ import catalogRoutes from './routes/catalogRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 import { getPayment } from './controllers/paymentController.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -26,6 +27,7 @@ export function createApp() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/cart', cartRoutes);
   app.use('/api/orders', orderRoutes);
+  app.use('/api/chat', chatRoutes);
   app.use('/api', catalogRoutes);
   app.use('/api', (req, res) => {
     res.status(404).json({ message: 'Không có đường dẫn này.' });

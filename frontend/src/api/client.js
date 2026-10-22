@@ -122,6 +122,10 @@ export function cancelOrder(id) {
   return request(`/api/orders/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
 }
 
+export function chat(message, history = []) {
+  return request('/api/chat', { method: 'POST', body: { message, history } });
+}
+
 export function getPayment(amount, addInfo) {
   const params = new URLSearchParams();
   if (amount != null) params.set('amount', String(amount));
