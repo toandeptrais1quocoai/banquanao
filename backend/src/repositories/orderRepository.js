@@ -6,6 +6,7 @@ export async function createOrder(order, items) {
   await transaction.begin();
 
   try {
+    const initialStatus = order.status || 'pending';
     const orderResult = await new sql.Request(transaction)
       .input('userId', sql.Int, order.userId)
       .input('fullName', sql.NVarChar(80), order.fullName)
@@ -13,16 +14,44 @@ export async function createOrder(order, items) {
       .input('address', sql.NVarChar(300), order.address)
       .input('note', sql.NVarChar(400), order.note)
       .input('paymentMethod', sql.NVarChar(30), order.paymentMethod)
+      .input('status', sql.NVarChar(30), initialStatus)
       .input('total', sql.Int, order.total)
       .query(`
-        INSERT INTO dbo.Orders (UserId, FullName, Phone, Address, Note, PaymentMethod, Total)
+        INSERT INTO dbo.Orders (UserId, FullName, Phone, Address, Note, PaymentMethod, Status, Total)
         OUTPUT INSERTED.Id, INSERTED.Status, INSERTED.CreatedAt, INSERTED.Total
-        VALUES (@userId, @fullName, @phone, @address, @note, @paymentMethod, @total)
+        VALUES (@userId, @fullName, @phone, @address, @note, @paymentMethod, @status, @total)
       `);
 
     const created = orderResult.recordset[0];
 
     for (const item of items) {
+      const stockCheck = await new sql.Request(transaction)
+        .input('productId', sql.Int, item.productId)
+        .query(`
+          SELECT
+            p.Id,
+            p.Name,
+            p.ImportQty - ISNULL((
+              SELECT SUM(oi.Quantity)
+              FROM dbo.OrderItems oi
+              INNER JOIN dbo.Orders o ON o.Id = oi.OrderId
+              WHERE oi.ProductId = p.Id AND o.Status <> N'cancelled'
+            ), 0) AS StockQty
+          FROM dbo.Products p WITH (UPDLOCK, ROWLOCK)
+          WHERE p.Id = @productId
+        `);
+      const product = stockCheck.recordset[0];
+      if (!product) {
+        const error = new Error('Có món trong đơn không còn bán.');
+        error.status = 400;
+        throw error;
+      }
+      if (product.StockQty < item.quantity) {
+        const error = new Error(`“${product.Name}” chỉ còn ${product.StockQty} sản phẩm.`);
+        error.status = 400;
+        throw error;
+      }
+
       await new sql.Request(transaction)
         .input('orderId', sql.Int, created.Id)
         .input('productId', sql.Int, item.productId)
@@ -30,10 +59,11 @@ export async function createOrder(order, items) {
         .input('size', sql.NVarChar(20), item.size)
         .input('color', sql.NVarChar(40), item.color || '')
         .input('unitPrice', sql.Int, item.unitPrice)
+        .input('unitCost', sql.Int, item.unitCost || 0)
         .input('quantity', sql.Int, item.quantity)
         .query(`
-          INSERT INTO dbo.OrderItems (OrderId, ProductId, ProductName, Size, Color, UnitPrice, Quantity)
-          VALUES (@orderId, @productId, @productName, @size, @color, @unitPrice, @quantity)
+          INSERT INTO dbo.OrderItems (OrderId, ProductId, ProductName, Size, Color, UnitPrice, UnitCost, Quantity)
+          VALUES (@orderId, @productId, @productName, @size, @color, @unitPrice, @unitCost, @quantity)
         `);
     }
 
@@ -72,6 +102,47 @@ export async function createOrder(order, items) {
   }
 }
 
+export async function updateStatus(id, status) {
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input('id', sql.Int, id)
+    .input('status', sql.NVarChar(30), status)
+    .query(`
+      UPDATE dbo.Orders
+      SET Status = @status
+      OUTPUT INSERTED.Id, INSERTED.Status
+      WHERE Id = @id
+    `);
+  return result.recordset[0]
+    ? { id: result.recordset[0].Id, status: result.recordset[0].Status }
+    : null;
+}
+
+export async function listByUser(userId) {
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input('userId', sql.Int, userId)
+    .query(`
+      SELECT Id, FullName, Phone, Address, Note, PaymentMethod, Status, Total, CreatedAt
+      FROM dbo.Orders
+      WHERE UserId = @userId
+      ORDER BY Id DESC
+    `);
+  return result.recordset.map((row) => ({
+    id: row.Id,
+    fullName: row.FullName,
+    phone: row.Phone,
+    address: row.Address,
+    note: row.Note,
+    paymentMethod: row.PaymentMethod,
+    status: row.Status,
+    total: row.Total,
+    createdAt: row.CreatedAt,
+  }));
+}
+
 export async function findById(id) {
   const pool = await getPool();
   const orderResult = await pool
@@ -89,7 +160,7 @@ export async function findById(id) {
     .request()
     .input('orderId', sql.Int, id)
     .query(`
-      SELECT Id, ProductId, ProductName, Size, Color, UnitPrice, Quantity
+      SELECT Id, ProductId, ProductName, Size, Color, UnitPrice, UnitCost, Quantity
       FROM dbo.OrderItems
       WHERE OrderId = @orderId
       ORDER BY Id
@@ -113,8 +184,10 @@ export async function findById(id) {
       size: row.Size,
       color: row.Color,
       unitPrice: row.UnitPrice,
+      unitCost: row.UnitCost || 0,
       quantity: row.Quantity,
       lineTotal: row.UnitPrice * row.Quantity,
+      lineProfit: (row.UnitPrice - (row.UnitCost || 0)) * row.Quantity,
     })),
   };
 }

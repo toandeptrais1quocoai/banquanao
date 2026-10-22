@@ -37,12 +37,15 @@ export function AuthProvider({ children }) {
         const data = await api.login(email, password);
         api.setToken(data.token);
         setUser(data.user);
+        return data.user;
       },
       async register(payload) {
         const data = await api.register(payload);
         api.setToken(data.token);
         setUser(data.user);
+        return data.user;
       },
+      isAdmin: user?.role === 'admin',
       logout() {
         api.setToken(null);
         setUser(null);

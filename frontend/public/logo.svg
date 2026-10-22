@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="NT shop">
+  <defs>
+    <linearGradient id="ntBg" x1="18" y1="8" x2="110" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#143f8a"/>
+      <stop offset="1" stop-color="#0b2f6b"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#ntBg)"/>
+  <path
+    d="M34 42c18-16 42-16 60 0"
+    fill="none"
+    stroke="#ffe566"
+    stroke-width="6"
+    stroke-linecap="round"
+  />
+  <circle cx="64" cy="30" r="5" fill="#ffe566"/>
+  <text
+    x="64"
+    y="88"
+    text-anchor="middle"
+    font-family="Be Vietnam Pro, Segoe UI, Arial, sans-serif"
+    font-size="52"
+    font-weight="800"
+    letter-spacing="-1"
+    fill="#ffffff"
+  >NT</text>
+</svg>

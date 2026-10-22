@@ -104,13 +104,16 @@ export default function ProductPage() {
   return (
     <>
       <article className="detail">
-        <div className="detail-photo">
+        <div className="detail-photo" key={activeColor?.imageUrl || product.imageUrl}>
           <img
             src={activeColor?.imageUrl || product.imageUrl}
             alt={`${product.name} — ${activeColor?.name || ''}`}
             fetchPriority="high"
             decoding="async"
           />
+          {activeColor?.name ? (
+            <span className="detail-photo-color">{activeColor.name}</span>
+          ) : null}
         </div>
         <div className="detail-info">
           <p className="crumb">

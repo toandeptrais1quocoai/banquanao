@@ -39,11 +39,16 @@ function mapProduct(row) {
 
   return {
     id: row.Id,
+    categoryId: row.CategoryId,
     name: row.Name,
     slug: row.Slug,
     description: row.Description,
     price,
     originalPrice,
+    costPrice: Number(row.CostPrice) || 0,
+    importQty: Number(row.ImportQty) || 0,
+    soldQty: Number(row.SoldQty) || 0,
+    stockQty: Math.max(0, Number(row.StockQty) || 0),
     discountPercent,
     imageUrl: row.ImageUrl,
     colorName: row.ColorName,
@@ -57,8 +62,21 @@ function mapProduct(row) {
   };
 }
 
+const SOLD_SUBQUERY = `
+  ISNULL((
+    SELECT SUM(oi.Quantity)
+    FROM dbo.OrderItems oi
+    INNER JOIN dbo.Orders o ON o.Id = oi.OrderId
+    WHERE oi.ProductId = p.Id AND o.Status <> N'cancelled'
+  ), 0)
+`;
+
 const PRODUCT_SELECT = `
-  p.Id, p.Name, p.Slug, p.Description, p.Price, p.OriginalPrice, p.ImageUrl,
+  p.Id, p.CategoryId, p.Name, p.Slug, p.Description, p.Price, p.OriginalPrice, p.CostPrice,
+  p.ImportQty,
+  ${SOLD_SUBQUERY} AS SoldQty,
+  (p.ImportQty - ${SOLD_SUBQUERY}) AS StockQty,
+  p.ImageUrl,
   p.ColorName, p.ColorHex, p.ColorOptions, p.Sizes, p.Material, p.IsFeatured,
   c.Name AS CategoryName, c.Slug AS CategorySlug
 `;

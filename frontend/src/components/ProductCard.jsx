@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../utils/format';
 
@@ -5,14 +6,17 @@ export default function ProductCard({ product, priority = false }) {
   const hasSale = Boolean(product.originalPrice && product.originalPrice > product.price);
   const colors = product.colors?.length
     ? product.colors
-    : [{ name: product.colorName, hex: product.colorHex }];
+    : [{ name: product.colorName, hex: product.colorHex, imageUrl: product.imageUrl }];
+  const [preview, setPreview] = useState(null);
+  const imageSrc = preview?.imageUrl || product.imageUrl;
 
   return (
     <article className="card shop-card">
       <div className="thumb">
         <Link to={`/san-pham/${product.slug}`} className="thumb-link">
           <img
-            src={product.imageUrl}
+            key={imageSrc}
+            src={imageSrc}
             alt={product.name}
             loading={priority ? 'eager' : 'lazy'}
             decoding="async"
@@ -26,11 +30,21 @@ export default function ProductCard({ product, priority = false }) {
       <div className="card-body">
         <div className="swatch-row" aria-label="Màu có sẵn">
           {colors.slice(0, 4).map((item) => (
-            <i
+            <button
               key={item.name}
-              className="swatch"
+              type="button"
+              className={`swatch-btn${preview?.name === item.name ? ' is-on' : ''}`}
               style={{ background: item.hex }}
               title={item.name}
+              aria-label={`Xem màu ${item.name}`}
+              onMouseEnter={() => setPreview(item)}
+              onMouseLeave={() => setPreview(null)}
+              onFocus={() => setPreview(item)}
+              onBlur={() => setPreview(null)}
+              onClick={(event) => {
+                event.preventDefault();
+                setPreview(item);
+              }}
             />
           ))}
         </div>
@@ -41,6 +55,7 @@ export default function ProductCard({ product, priority = false }) {
           {product.sizes?.length ? `${product.sizes.length} size` : 'Có size'}
           {' · '}
           {colors.length} màu
+          {preview ? ` · ${preview.name}` : ''}
         </p>
         <div className="price-row">
           <strong className="price">{formatPrice(product.price)}</strong>

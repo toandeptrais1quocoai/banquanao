@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { categories as fetchCategories } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,8 @@ export default function Layout() {
   const current = params.get('danh-muc') || '';
   const [categories, setCategories] = useState([]);
   const [query, setQuery] = useState(params.get('q') || '');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const isHome = pathname === '/';
 
   useEffect(() => {
@@ -32,11 +34,39 @@ export default function Layout() {
     setQuery(params.get('q') || '');
   }, [params]);
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    function onPointer(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKey(event) {
+      if (event.key === 'Escape') setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
   function onSearch(event) {
     event.preventDefault();
     const q = query.trim();
     if (q) navigate(`/?q=${encodeURIComponent(q)}`);
     else navigate('/');
+  }
+
+  function onLogout() {
+    setMenuOpen(false);
+    logout();
+    navigate('/');
   }
 
   return (
@@ -54,9 +84,12 @@ export default function Layout() {
 
       <header className="shop-header">
         <div className="wrap shop-header-inner">
-          <Link to="/" className="shop-logo">
-            <span className="shop-logo-mark">NT</span>
-            <strong>NT shop</strong>
+          <Link to="/" className="shop-logo" aria-label="NT shop — trang chủ">
+            <img className="shop-logo-img" src="/logo.svg" width="40" height="40" alt="" />
+            <span className="shop-logo-text">
+              <strong>NT shop</strong>
+              <small>Fashion</small>
+            </span>
           </Link>
 
           <nav className="shop-nav-links" aria-label="Danh mục">
@@ -89,11 +122,45 @@ export default function Layout() {
 
           <div className="shop-header-actions">
             {user ? (
-              <div className="shop-account">
-                <span className="shop-account-name">{givenName(user.fullName)}</span>
-                <button type="button" className="linkish light" onClick={logout}>
-                  Thoát
+              <div className="shop-account-menu" ref={menuRef}>
+                <button
+                  type="button"
+                  className="shop-account-btn"
+                  aria-label="Tài khoản"
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
+                  onClick={() => setMenuOpen((open) => !open)}
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                    <path
+                      d="M5 19.2c1.6-3.2 4-4.8 7-4.8s5.4 1.6 7 4.8"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </button>
+                {menuOpen ? (
+                  <div className="shop-account-dropdown" role="menu">
+                    <p className="shop-account-dropdown-name">{givenName(user.fullName)}</p>
+                    {user.role === 'admin' ? (
+                      <Link role="menuitem" to="/admin" onClick={() => setMenuOpen(false)}>
+                        Quản trị
+                      </Link>
+                    ) : null}
+                    <Link role="menuitem" to="/doi-mat-khau" onClick={() => setMenuOpen(false)}>
+                      Đổi mật khẩu
+                    </Link>
+                    <Link role="menuitem" to="/don-hang" onClick={() => setMenuOpen(false)}>
+                      Trạng thái đơn hàng
+                    </Link>
+                    <button type="button" role="menuitem" onClick={onLogout}>
+                      Đăng xuất
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <Link to="/dang-nhap" className="shop-account-link">
@@ -128,7 +195,10 @@ export default function Layout() {
       <footer className="site-footer shop-footer">
         <div className="wrap footer-grid">
           <div>
-            <p className="logo-footer">NT shop</p>
+            <p className="logo-footer">
+              <img src="/logo.svg" width="36" height="36" alt="" />
+              <span>NT shop</span>
+            </p>
             <p>Thời trang, giày dép mỗi ngày. Giao COD toàn quốc.</p>
             <p className="footer-phone">Hotline: 0325.589.396</p>
           </div>
@@ -167,7 +237,15 @@ export default function Layout() {
                   <strong>{user.fullName}</strong>
                 </p>
                 <p>{user.email}</p>
-                <button type="button" className="btn btn-line btn-small" onClick={logout}>
+                <ul>
+                  <li>
+                    <Link to="/don-hang">Trạng thái đơn hàng</Link>
+                  </li>
+                  <li>
+                    <Link to="/doi-mat-khau">Đổi mật khẩu</Link>
+                  </li>
+                </ul>
+                <button type="button" className="btn btn-line btn-small" onClick={onLogout}>
                   Đăng xuất
                 </button>
               </>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { forgotPassword, resetPassword } from '../api/client';
+import { forgotPassword, mailStatus, resetPassword } from '../api/client';
 import AuthLayout from '../components/AuthLayout';
 import { PasswordField, TextField } from '../components/Field';
 import { isEmail } from '../utils/format';
@@ -16,16 +16,27 @@ export default function ForgotPasswordPage() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [pending, setPending] = useState(false);
+  const [mailReady, setMailReady] = useState(null);
 
   useEffect(() => {
     document.title = 'Quên mật khẩu — NT shop';
+    let ignore = false;
+    mailStatus()
+      .then((data) => {
+        if (!ignore) setMailReady(data);
+      })
+      .catch(() => {
+        if (!ignore) setMailReady({ configured: false, hint: 'Không kiểm tra được cấu hình Gmail.' });
+      });
+    return () => {
+      ignore = true;
+    };
   }, []);
 
-  async function requestCode(event) {
-    event.preventDefault();
+  async function sendOtp() {
     if (!isEmail(email.trim())) {
       setErrors({ email: 'Email chưa đúng định dạng.' });
-      return;
+      return false;
     }
     setErrors({});
     setFormError('');
@@ -35,11 +46,22 @@ export default function ForgotPasswordPage() {
       setNotice(data.message || 'Đã gửi mã OTP vào Gmail của bạn.');
       setCode('');
       setStep(2);
+      return true;
     } catch (err) {
       setFormError(err.message);
+      return false;
     } finally {
       setPending(false);
     }
+  }
+
+  async function requestCode(event) {
+    event.preventDefault();
+    await sendOtp();
+  }
+
+  async function resendCode() {
+    await sendOtp();
   }
 
   async function changePassword(event) {
@@ -72,13 +94,25 @@ export default function ForgotPasswordPage() {
       kicker="Tài khoản"
       title={step === 1 ? 'Quên mật khẩu' : 'Đặt mật khẩu mới'}
       lead={step === 1
-        ? 'Nhập Gmail đã đăng ký. Mã OTP 6 số sẽ gửi về hộp thư của bạn.'
-        : 'Mở Gmail, lấy mã OTP 6 số rồi đặt mật khẩu mới. Mã hết hạn sau 15 phút.'}
+        ? 'Nhập Gmail đã đăng ký trên NT shop. Mã OTP sẽ gửi về đúng địa chỉ đó.'
+        : `Mở hộp thư ${email || 'Gmail vừa nhập'}, lấy mã OTP 6 số rồi đặt mật khẩu mới.`}
       aside={{
-        title: 'OTP gửi qua Gmail.',
-        text: 'Mã chỉ gửi vào email, không hiện trên web. Kiểm tra Hộp thư đến và Spam.',
+        title: 'OTP gửi đúng email bạn nhập',
+        text: 'Ví dụ nhập Gmail bạn bè thì mã chỉ về Gmail đó. Gmail shop chỉ dùng để gửi hộ, không nhận mã.',
       }}
     >
+      {mailReady && !mailReady.configured ? (
+        <p className="alert" role="status">
+          Chưa bật gửi OTP Gmail. Điền <code>GMAIL_USER</code> và <code>GMAIL_APP_PASSWORD</code> trong{' '}
+          <code>backend/.env</code> (Google Tài khoản → Bảo mật → Xác minh 2 bước → Mật khẩu ứng dụng), rồi khởi động lại API.
+        </p>
+      ) : null}
+      {mailReady?.configured ? (
+        <p className="alert ok" role="status">
+          Hệ thống sẵn sàng gửi OTP. Mã sẽ đến <strong>đúng Gmail bạn nhập bên dưới</strong> (không gửi về shop).
+        </p>
+      ) : null}
+
       {formError ? <p className="alert" role="alert">{formError}</p> : null}
       {step === 1 ? (
         <form onSubmit={requestCode} noValidate>
@@ -90,8 +124,12 @@ export default function ForgotPasswordPage() {
             onChange={(event) => setEmail(event.target.value)}
             error={errors.email}
           />
-          <button className="btn btn-primary btn-block" type="submit" disabled={pending}>
-            {pending ? 'Đang gửi OTP…' : 'Gửi mã OTP'}
+          <button
+            className="btn btn-primary btn-block"
+            type="submit"
+            disabled={pending || mailReady?.configured === false}
+          >
+            {pending ? 'Đang gửi OTP…' : 'Gửi mã OTP qua Gmail'}
           </button>
         </form>
       ) : (
@@ -127,7 +165,14 @@ export default function ForgotPasswordPage() {
       <div className="form-links">
         <Link to="/dang-nhap">Về đăng nhập</Link>
         {step === 2 ? (
-          <button type="button" className="text-btn" onClick={() => setStep(1)}>Đổi email</button>
+          <>
+            <button type="button" className="text-btn" onClick={resendCode} disabled={pending}>
+              Gửi lại OTP
+            </button>
+            <button type="button" className="text-btn" onClick={() => setStep(1)}>
+              Đổi email
+            </button>
+          </>
         ) : null}
       </div>
     </AuthLayout>

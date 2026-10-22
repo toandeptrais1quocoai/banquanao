@@ -4,6 +4,8 @@ import authRoutes from './routes/authRoutes.js';
 import catalogRoutes from './routes/catalogRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import { getPayment } from './controllers/paymentController.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 export function createApp() {
@@ -19,7 +21,9 @@ export function createApp() {
   app.get('/api/health', (req, res) => {
     res.json({ ok: true });
   });
+  app.get('/api/payment', getPayment);
   app.use('/api/auth', authRoutes);
+  app.use('/api/admin', adminRoutes);
   app.use('/api/cart', cartRoutes);
   app.use('/api/orders', orderRoutes);
   app.use('/api', catalogRoutes);

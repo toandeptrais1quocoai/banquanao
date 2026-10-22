@@ -46,12 +46,20 @@ export function me() {
   return request('/api/auth/me');
 }
 
+export function mailStatus() {
+  return request('/api/auth/mail-status');
+}
+
 export function forgotPassword(email) {
   return request('/api/auth/forgot-password', { method: 'POST', body: { email } });
 }
 
 export function resetPassword(body) {
   return request('/api/auth/reset-password', { method: 'POST', body });
+}
+
+export function changePassword(body) {
+  return request('/api/auth/change-password', { method: 'POST', body });
 }
 
 export function categories() {
@@ -102,6 +110,96 @@ export function checkout(body) {
   return request('/api/orders', { method: 'POST', body });
 }
 
+export function myOrders() {
+  return request('/api/orders');
+}
+
 export function getOrder(id) {
   return request(`/api/orders/${encodeURIComponent(id)}`);
+}
+
+export function cancelOrder(id) {
+  return request(`/api/orders/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+}
+
+export function getPayment(amount, addInfo) {
+  const params = new URLSearchParams();
+  if (amount != null) params.set('amount', String(amount));
+  if (addInfo) params.set('addInfo', addInfo);
+  const query = params.toString();
+  return request(`/api/payment${query ? `?${query}` : ''}`);
+}
+
+export function adminStats() {
+  return request('/api/admin/stats');
+}
+
+export function adminCategories() {
+  return request('/api/admin/categories');
+}
+
+export function adminProducts(category, search) {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  if (search) params.set('q', search);
+  const query = params.toString();
+  return request(`/api/admin/products${query ? `?${query}` : ''}`);
+}
+
+export function adminProduct(id) {
+  return request(`/api/admin/products/${encodeURIComponent(id)}`);
+}
+
+export function adminCreateProduct(body) {
+  return request('/api/admin/products', { method: 'POST', body });
+}
+
+export function adminUpdateProduct(id, body) {
+  return request(`/api/admin/products/${encodeURIComponent(id)}`, { method: 'PATCH', body });
+}
+
+export function adminUpdateInventory(id, body) {
+  return request(`/api/admin/products/${encodeURIComponent(id)}/inventory`, {
+    method: 'PATCH',
+    body,
+  });
+}
+
+export function adminDeleteProduct(id) {
+  return request(`/api/admin/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function adminOrders() {
+  return request('/api/admin/orders');
+}
+
+export function adminOrder(id) {
+  return request(`/api/admin/orders/${encodeURIComponent(id)}`);
+}
+
+export function adminUpdateOrderStatus(id, status) {
+  return request(`/api/admin/orders/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: { status },
+  });
+}
+
+export function adminCustomers() {
+  return request('/api/admin/customers');
+}
+
+export function adminCustomer(id) {
+  return request(`/api/admin/customers/${encodeURIComponent(id)}`);
+}
+
+export function adminCreateCustomer(body) {
+  return request('/api/admin/customers', { method: 'POST', body });
+}
+
+export function adminUpdateCustomer(id, body) {
+  return request(`/api/admin/customers/${encodeURIComponent(id)}`, { method: 'PATCH', body });
+}
+
+export function adminDeleteCustomer(id) {
+  return request(`/api/admin/customers/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }

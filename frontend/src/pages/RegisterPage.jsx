@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
@@ -25,9 +26,11 @@ export default function RegisterPage() {
   async function onSubmit(event) {
     event.preventDefault();
     const name = fullName.trim().replace(/\s+/g, ' ');
+    const phoneValue = phone.trim().replace(/\s+/g, '');
     const next = {};
     if (name.length < 2) next.fullName = 'Tên cần ít nhất 2 ký tự.';
     if (!isEmail(email.trim())) next.email = 'Email chưa đúng định dạng.';
+    if (!/^(0|\+84)[0-9]{8,10}$/.test(phoneValue)) next.phone = 'Số điện thoại chưa đúng.';
     if (password.length < 6) next.password = 'Mật khẩu cần ít nhất 6 ký tự.';
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -35,7 +38,7 @@ export default function RegisterPage() {
     setPending(true);
     setFormError('');
     try {
-      await register({ fullName: name, email: email.trim(), password });
+      await register({ fullName: name, email: email.trim(), phone: phoneValue, password });
       navigate('/');
     } catch (err) {
       setFormError(err.message);
@@ -70,6 +73,14 @@ export default function RegisterPage() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           error={errors.email}
+        />
+        <TextField
+          label="Số điện thoại"
+          type="tel"
+          autoComplete="tel"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          error={errors.phone}
         />
         <PasswordField
           label="Mật khẩu"

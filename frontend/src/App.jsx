@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
+import AdminLayout from './components/AdminLayout';
+import RequireAdmin from './components/RequireAdmin';
 import HomePage from './pages/HomePage';
 import ProductPage from './pages/ProductPage';
 import LoginPage from './pages/LoginPage';
@@ -9,8 +11,16 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
+import MyOrdersPage from './pages/MyOrdersPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import SizeGuidePage from './pages/SizeGuidePage';
 import NotFoundPage from './pages/NotFoundPage';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminRevenue from './pages/admin/AdminRevenue';
+import AdminProducts from './pages/admin/AdminProducts';
+import AdminInventory from './pages/admin/AdminInventory';
+import AdminOrders from './pages/admin/AdminOrders';
+import AdminCustomers from './pages/admin/AdminCustomers';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -30,6 +40,17 @@ export default function App() {
     <>
       <ScrollToTop />
       <Routes>
+        <Route element={<RequireAdmin />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="doanh-thu" element={<AdminRevenue />} />
+            <Route path="san-pham" element={<AdminProducts />} />
+            <Route path="kho" element={<AdminInventory />} />
+            <Route path="don-hang" element={<AdminOrders />} />
+            <Route path="khach-hang" element={<AdminCustomers />} />
+          </Route>
+        </Route>
+
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/gian-hang" element={<ShopRedirect />} />
@@ -41,6 +62,8 @@ export default function App() {
           <Route path="/gio-hang" element={<CartPage />} />
           <Route path="/thanh-toan" element={<CheckoutPage />} />
           <Route path="/dat-hang/:id" element={<OrderSuccessPage />} />
+          <Route path="/don-hang" element={<MyOrdersPage />} />
+          <Route path="/doi-mat-khau" element={<ChangePasswordPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

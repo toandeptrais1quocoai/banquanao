@@ -13,10 +13,18 @@ export const me = asyncHandler(async (req, res) => {
   res.json({ user: await authService.me(req.userId) });
 });
 
+export const mailStatus = asyncHandler(async (req, res) => {
+  res.json(authService.mailStatus());
+});
+
 export const forgotPassword = asyncHandler(async (req, res) => {
   res.json(await authService.forgotPassword(req.body || {}));
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {
   res.json(await authService.resetPassword(req.body || {}));
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  res.json(await authService.changePassword(req.userId, req.body || {}));
 });

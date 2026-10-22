@@ -24,7 +24,8 @@ npm run dev
 
 Mở http://localhost:5173
 
-Tài khoản mẫu: `an@ntshop.local` / `123456`
+Tài khoản khách: `an@ntshop.local` / `123456`  
+Tài khoản admin (vào `/admin`): `admin@ntshop.local` / `admin123`
 
 API lắng nghe cổng 4000. Ứng dụng web gọi `/api` qua Vite, nên trình duyệt không cần biết cổng đó.
 
@@ -38,7 +39,22 @@ API lắng nghe cổng 4000. Ứng dụng web gọi `/api` qua Vite, nên trình
 
 ## Quên mật khẩu
 
-Gắn Gmail App Password trong `backend/.env` (`GMAIL_USER`, `GMAIL_APP_PASSWORD`) để gửi OTP. Mã có hiệu lực 15 phút, lưu dạng băm trong `PasswordResets`.
+### Gửi OTP qua Gmail (quên mật khẩu)
+
+1. Bật **Xác minh 2 bước** cho Gmail.
+2. Google Tài khoản → **Bảo mật** → **Mật khẩu ứng dụng** → tạo mật khẩu cho “Mail”.
+3. Điền vào `backend/.env`:
+
+```env
+GMAIL_USER=ban@gmail.com
+GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+MAIL_FROM_NAME=NT shop
+```
+
+4. Khởi động lại API, mở `/quen-mat-khau` → **Gửi mã OTP qua Gmail**.
+5. (Tuỳ chọn) thử gửi: `npm run mail:test --prefix backend`
+
+Mã OTP 6 số hết hạn sau 15 phút, lưu dạng băm trong `PasswordResets`.
 
 ## Đưa web lên mạng (24/7)
 

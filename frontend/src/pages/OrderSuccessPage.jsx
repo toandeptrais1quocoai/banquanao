@@ -2,13 +2,21 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { getOrder } from '../api/client';
 import Invoice from '../components/Invoice';
+import PaymentQr from '../components/PaymentQr';
 import { formatPrice } from '../utils/format';
+import { formatOrderStatus } from '../utils/orderStatus';
+
+function paymentLead(order) {
+  if (order.paymentMethod === 'QR') {
+    return `Tổng ${formatPrice(order.total)}. Quét QR bên dưới để chuyển đúng số tiền (nội dung NT${order.id}).`;
+  }
+  return `Tổng ${formatPrice(order.total)}. Thanh toán khi nhận hàng (COD). NT shop sẽ liên hệ qua số điện thoại bạn vừa để.`;
+}
 
 export default function OrderSuccessPage() {
   const { id } = useParams();
   const location = useLocation();
   const seeded = location.state?.order || null;
-  const autoPrint = Boolean(location.state?.autoPrint);
   const needsFetch = !seeded || !Array.isArray(seeded.items);
   const [order, setOrder] = useState(seeded);
   const [error, setError] = useState('');
@@ -19,37 +27,36 @@ export default function OrderSuccessPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!needsFetch) return undefined;
     let ignore = false;
-    setLoading(true);
-    getOrder(id)
-      .then((data) => {
-        if (!ignore) setOrder(data.order);
-      })
-      .catch((err) => {
-        if (!ignore) setError(err.message);
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
+
+    async function fetchOrder({ silent = false } = {}) {
+      if (!silent) setLoading(true);
+      try {
+        const data = await getOrder(id);
+        if (!ignore) {
+          setOrder(data.order);
+          setError('');
+        }
+      } catch (err) {
+        if (!ignore && !silent) setError(err.message);
+      } finally {
+        if (!ignore && !silent) setLoading(false);
+      }
+    }
+
+    if (needsFetch) {
+      fetchOrder();
+    }
+
+    const timer = window.setInterval(() => fetchOrder({ silent: true }), 8000);
+    const onFocus = () => fetchOrder({ silent: true });
+    window.addEventListener('focus', onFocus);
     return () => {
       ignore = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
     };
   }, [id, needsFetch]);
-
-  useEffect(() => {
-    if (!autoPrint || loading || !order) return undefined;
-    const timer = window.setTimeout(() => {
-      requestAnimationFrame(() => {
-        window.print();
-      });
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [autoPrint, loading, order]);
-
-  function printInvoice() {
-    window.print();
-  }
 
   if (loading) return <p className="status">Đang lấy đơn…</p>;
   if (error || !order) {
@@ -57,25 +64,46 @@ export default function OrderSuccessPage() {
       <div className="empty-page">
         <h1>Không thấy đơn này</h1>
         <p>{error || 'Đơn có thể chưa được tạo.'}</p>
-        <Link className="btn btn-primary" to="/">Về gian hàng</Link>
+        <Link className="btn btn-primary" to="/">
+          Về gian hàng
+        </Link>
       </div>
     );
   }
+
+  const isQr = order.paymentMethod === 'QR';
 
   return (
     <section className="order-ok">
       <div className="order-ok-screen">
         <p className="kicker">Đặt hàng xong</p>
-        <h1>Đơn #{order.id} đã ghi nhận</h1>
-        <p className="lead">
-          Tổng {formatPrice(order.total)}. Thanh toán khi nhận hàng (COD).
-          NT shop sẽ liên hệ qua số điện thoại bạn vừa để.
+        <h1>Đơn #{order.id} đã đặt thành công</h1>
+        <p className="order-status-line">
+          Trạng thái:{' '}
+          <em className={`order-status order-status-${order.status}`}>
+            {formatOrderStatus(order.status)}
+          </em>
         </p>
+        <p className="lead">{paymentLead(order)}</p>
+
+        {isQr ? (
+          <PaymentQr
+            amount={order.total}
+            qrImageUrl={order.qrImageUrl || order.payment?.qrImageUrl}
+            accountNo={order.payment?.accountNo}
+            accountName={order.payment?.accountName}
+            bankName={order.payment?.bankName}
+            transferCode={order.transferCode || `NT${order.id}`}
+          />
+        ) : null}
+
         <div className="buy-row">
-          <button className="btn btn-primary" type="button" onClick={printInvoice}>
-            In lại hóa đơn
-          </button>
-          <Link className="btn btn-line" to="/">Tiếp tục mua</Link>
+          <Link className="btn btn-primary" to="/don-hang">
+            Theo dõi đơn
+          </Link>
+          <Link className="btn btn-line" to="/">
+            Tiếp tục mua
+          </Link>
         </div>
       </div>
 

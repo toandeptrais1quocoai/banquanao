@@ -5,21 +5,30 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "seed": "node src/seed.js"
+    "seed": "node src/seed.js",
+    "seed:images": "node src/seedProductVisuals.js",
+    "mail:test": "node src/scripts/testMail.js"
   },
   "dependencies": {
+    "@imgly/background-removal-node": "^1.4.5",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mssql": "^11.0.1",
-    "nodemailer": "^10.2.0"
+    "nodemailer": "^10.2.0",
+    "sharp": "^0.35.5"
   },
   "optionalDependencies": {
     "msnodesqlv8": "^5.6.0"
   },
   "engines": {
     "node": ">=20"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true,
+    "sharp@0.35.5": true,
+    "onnxruntime-node@1.17.3": true
   }
 }

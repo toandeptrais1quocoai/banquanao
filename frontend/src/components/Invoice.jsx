@@ -1,25 +1,20 @@
 import { formatPrice } from '../utils/format';
+import { formatOrderStatus } from '../utils/orderStatus';
 
-function formatDateTime(value) {
+function formatOrderTime(value) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat('vi-VN', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
   }).format(date);
-}
-
-const STATUS_LABEL = {
-  pending: 'Chờ giao',
-  confirmed: 'Đã xác nhận',
-  shipping: 'Đang giao',
-  done: 'Hoàn tất',
-  cancelled: 'Đã hủy',
-};
-
-function formatStatus(status) {
-  return STATUS_LABEL[status] || status || 'Mới';
 }
 
 export default function Invoice({ order }) {
@@ -39,12 +34,12 @@ export default function Invoice({ order }) {
             <strong>#{order.id}</strong>
           </p>
           <p>
-            <span>Ngày lập</span>
-            <strong>{formatDateTime(order.createdAt)}</strong>
+            <span>Giờ đặt hàng</span>
+            <strong>{formatOrderTime(order.createdAt)}</strong>
           </p>
           <p>
             <span>Trạng thái</span>
-            <strong>{formatStatus(order.status)}</strong>
+            <strong>{formatOrderStatus(order.status)}</strong>
           </p>
         </div>
       </header>
@@ -56,7 +51,11 @@ export default function Invoice({ order }) {
             <strong>NT shop</strong>
           </p>
           <p>Gian hàng quần áo</p>
-          <p>Thanh toán khi nhận hàng (COD)</p>
+          <p>
+            {order.paymentMethod === 'QR'
+              ? 'Thanh toán chuyển khoản QR'
+              : 'Thanh toán khi nhận hàng (COD)'}
+          </p>
         </div>
         <div>
           <h2>Người mua</h2>
@@ -105,6 +104,8 @@ export default function Invoice({ order }) {
       <footer className="invoice-foot">
         <p>
           {itemCount} món · {order.paymentMethod || 'COD'}
+          {' · '}
+          Đặt lúc {formatOrderTime(order.createdAt)}
         </p>
         <p className="invoice-total">
           <span>Tổng cộng</span>

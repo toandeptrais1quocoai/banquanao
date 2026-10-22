@@ -1,7 +1,9 @@
 import { AppError } from '../utils/errors.js';
+import { buildVietQrUrl, getPaymentInfo } from '../config/payment.js';
 import * as cart from '../repositories/cartRepository.js';
 import * as catalog from '../repositories/catalogRepository.js';
 import * as orders from '../repositories/orderRepository.js';
+import * as users from '../repositories/userRepository.js';
 
 const PHONE_PATTERN = /^(0|\+84)[0-9]{8,10}$/;
 
@@ -9,29 +11,11 @@ function text(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function buildOrderLines(entries) {
-  return entries.map((item) => ({
-    productId: item.productId,
-    productName: item.name || item.productName,
-    size: item.size,
-    color: item.color || item.colorName || '',
-    unitPrice: item.price || item.unitPrice,
-    quantity: item.quantity,
-  }));
-}
-
-async function resolveGuestItems(rawItems) {
-  const entries = Array.isArray(rawItems) ? rawItems : [];
-  if (!entries.length) {
-    throw new AppError(400, 'Giỏ đang trống.');
-  }
-  if (entries.length > 40) {
-    throw new AppError(400, 'Đơn quá nhiều dòng.');
-  }
-
+async function enrichLines(entries) {
   const products = await catalog.findProductsByIds(entries.map((item) => item.productId));
   const byId = new Map(products.map((product) => [product.id, product]));
   const lines = [];
+  const needed = new Map();
 
   for (const entry of entries) {
     const product = byId.get(Number(entry.productId));
@@ -50,17 +34,37 @@ async function resolveGuestItems(rawItems) {
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
       throw new AppError(400, 'Số lượng không hợp lệ.');
     }
+    needed.set(product.id, (needed.get(product.id) || 0) + quantity);
     lines.push({
       productId: product.id,
       productName: product.name,
       size,
       color,
       unitPrice: product.price,
+      unitCost: product.costPrice || 0,
       quantity,
     });
   }
 
+  for (const [productId, quantity] of needed) {
+    const product = byId.get(productId);
+    if (product.stockQty < quantity) {
+      throw new AppError(400, `“${product.name}” chỉ còn ${product.stockQty} sản phẩm trong kho.`);
+    }
+  }
+
   return lines;
+}
+
+async function resolveGuestItems(rawItems) {
+  const entries = Array.isArray(rawItems) ? rawItems : [];
+  if (!entries.length) {
+    throw new AppError(400, 'Giỏ đang trống.');
+  }
+  if (entries.length > 40) {
+    throw new AppError(400, 'Đơn quá nhiều dòng.');
+  }
+  return enrichLines(entries);
 }
 
 export async function checkout(userId, body) {
@@ -82,8 +86,11 @@ export async function checkout(userId, body) {
   if (note.length > 400) {
     throw new AppError(400, 'Ghi chú tối đa 400 ký tự.');
   }
-  if (paymentMethod !== 'COD') {
-    throw new AppError(400, 'Hiện chỉ nhận thanh toán khi nhận hàng (COD).');
+  if (paymentMethod !== 'COD' && paymentMethod !== 'QR') {
+    throw new AppError(400, 'Hình thức thanh toán không hợp lệ.');
+  }
+  if (paymentMethod === 'QR' && !getPaymentInfo().enabled) {
+    throw new AppError(503, 'Shop chưa cấu hình tài khoản nhận chuyển khoản QR.');
   }
 
   let lines;
@@ -103,25 +110,45 @@ export async function checkout(userId, body) {
       throw new AppError(400, 'Bạn chọn ít nhất một món trong giỏ.');
     }
     cartItemIds = chosen.map((item) => item.id);
-    lines = buildOrderLines(chosen);
+    lines = await enrichLines(chosen);
   } else {
     lines = await resolveGuestItems(body.items);
   }
 
   const total = lines.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-  const created = await orders.createOrder(
-    {
-      userId: userId || null,
-      fullName,
-      phone,
-      address,
-      note: note || null,
-      paymentMethod,
-      total,
-      cartItemIds,
-    },
-    lines,
-  );
+  let created;
+  try {
+    created = await orders.createOrder(
+      {
+        userId: userId || null,
+        fullName,
+        phone,
+        address,
+        note: note || null,
+        paymentMethod,
+        status: 'pending',
+        total,
+        cartItemIds,
+      },
+      lines,
+    );
+  } catch (error) {
+    if (error.status === 400) {
+      throw new AppError(400, error.message);
+    }
+    throw error;
+  }
+
+  if (userId) {
+    await users.updatePhone(userId, phone);
+  }
+
+  const transferCode = `NT${created.id}`;
+  const payment = getPaymentInfo();
+  const qrImageUrl =
+    paymentMethod === 'QR'
+      ? buildVietQrUrl({ amount: total, addInfo: transferCode })
+      : null;
 
   return {
     order: {
@@ -131,6 +158,9 @@ export async function checkout(userId, body) {
       address,
       note: note || null,
       paymentMethod,
+      transferCode: paymentMethod === 'QR' ? transferCode : null,
+      qrImageUrl,
+      payment: paymentMethod === 'QR' ? { ...payment, qrImageUrl } : null,
       itemCount: lines.reduce((sum, item) => sum + item.quantity, 0),
       items: lines.map((item, index) => ({
         id: index + 1,
@@ -146,6 +176,39 @@ export async function checkout(userId, body) {
   };
 }
 
+const CUSTOMER_CANCELABLE = new Set(['awaiting_payment', 'pending']);
+
+export async function listMyOrders(userId) {
+  if (!userId) {
+    throw new AppError(401, 'Bạn cần đăng nhập.');
+  }
+  const rows = await orders.listByUser(userId);
+  return { orders: rows };
+}
+
+export async function cancelMyOrder(userId, id) {
+  if (!userId) {
+    throw new AppError(401, 'Bạn cần đăng nhập.');
+  }
+  const orderId = Number(id);
+  if (!Number.isInteger(orderId) || orderId < 1) {
+    throw new AppError(400, 'Mã đơn không hợp lệ.');
+  }
+  const order = await orders.findById(orderId);
+  if (!order || order.userId !== userId) {
+    throw new AppError(404, 'Không thấy đơn này.');
+  }
+  if (order.status === 'cancelled') {
+    return { order: { ...order, status: 'cancelled' } };
+  }
+  if (!CUSTOMER_CANCELABLE.has(order.status)) {
+    throw new AppError(400, 'Shop đã xác nhận đơn, bạn không hủy được nữa.');
+  }
+  await orders.updateStatus(orderId, 'cancelled');
+  const updated = await orders.findById(orderId);
+  return { order: updated };
+}
+
 export async function getOrder(id) {
   const orderId = Number(id);
   if (!Number.isInteger(orderId) || orderId < 1) {
@@ -154,6 +217,19 @@ export async function getOrder(id) {
   const order = await orders.findById(orderId);
   if (!order) {
     throw new AppError(404, 'Không thấy đơn này.');
+  }
+  if (order.paymentMethod === 'QR') {
+    const transferCode = `NT${order.id}`;
+    const payment = getPaymentInfo();
+    const qrImageUrl = buildVietQrUrl({ amount: order.total, addInfo: transferCode });
+    return {
+      order: {
+        ...order,
+        transferCode,
+        qrImageUrl,
+        payment: payment.enabled ? { ...payment, qrImageUrl } : null,
+      },
+    };
   }
   return { order };
 }

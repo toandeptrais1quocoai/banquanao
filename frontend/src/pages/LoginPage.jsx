@@ -21,11 +21,18 @@ export default function LoginPage() {
   }, []);
 
   if (!ready) return <p className="status">Đang kiểm tra phiên…</p>;
-  if (user) return <Navigate to="/" replace />;
+  if (user) {
+    return <Navigate to={user.role === 'admin' ? '/admin' : '/'} replace />;
+  }
 
-  function fillDemo() {
-    setEmail('an@ntshop.local');
-    setPassword('123456');
+  function fillDemo(kind = 'customer') {
+    if (kind === 'admin') {
+      setEmail('admin@ntshop.local');
+      setPassword('admin123');
+    } else {
+      setEmail('an@ntshop.local');
+      setPassword('123456');
+    }
     setErrors({});
     setFormError('');
   }
@@ -41,8 +48,8 @@ export default function LoginPage() {
     setPending(true);
     setFormError('');
     try {
-      await login(email.trim(), password);
-      navigate('/');
+      const loggedIn = await login(email.trim(), password);
+      navigate(loggedIn.role === 'admin' ? '/admin' : '/');
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -87,8 +94,13 @@ export default function LoginPage() {
         <Link to="/dang-ky">Tạo tài khoản</Link>
       </div>
       <div className="demo">
-        <span>Tài khoản mẫu <code>an@ntshop.local</code> / <code>123456</code></span>
-        <button type="button" onClick={fillDemo}>Điền giúp</button>
+        <span>
+          Khách <code>an@ntshop.local</code> / <code>123456</code>
+          {' · '}
+          Admin <code>admin@ntshop.local</code> / <code>admin123</code>
+        </span>
+        <button type="button" onClick={() => fillDemo('customer')}>Điền khách</button>
+        <button type="button" onClick={() => fillDemo('admin')}>Điền admin</button>
       </div>
     </AuthLayout>
   );

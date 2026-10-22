@@ -22,9 +22,18 @@ BEGIN
         FullName NVARCHAR(80) NOT NULL,
         Email NVARCHAR(255) NOT NULL,
         PasswordHash NVARCHAR(255) NOT NULL,
+        Phone NVARCHAR(20) NULL,
+        Role NVARCHAR(20) NOT NULL CONSTRAINT DF_Users_Role DEFAULT N'customer',
         CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT UQ_Users_Email UNIQUE (Email)
+        CONSTRAINT UQ_Users_Email UNIQUE (Email),
+        CONSTRAINT CK_Users_Role CHECK (Role IN (N'customer', N'admin'))
     );
+END
+GO
+
+IF COL_LENGTH('dbo.Users', 'Phone') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD Phone NVARCHAR(20) NULL;
 END
 GO
 
@@ -120,6 +129,7 @@ SELECT
     Id,
     FullName AS HoTen,
     Email,
+    Phone AS DienThoai,
     CreatedAt AS NgayTao
 FROM dbo.Users;
 GO

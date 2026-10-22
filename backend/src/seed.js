@@ -631,7 +631,13 @@ try {
     await new sql.Request(transaction)
       .input('email', sql.NVarChar(255), demoEmail)
       .input('passwordHash', sql.NVarChar(255), passwordHash)
-      .query('UPDATE dbo.Users SET PasswordHash = @passwordHash WHERE Email = @email');
+      .input('phone', sql.NVarChar(20), '0901234567')
+      .query(`
+        UPDATE dbo.Users
+        SET PasswordHash = @passwordHash, Role = N'customer',
+            Phone = COALESCE(NULLIF(Phone, N''), @phone)
+        WHERE Email = @email
+      `);
   } else {
     const legacy = await new sql.Request(transaction)
       .input('legacy', sql.NVarChar(255), 'an@moc.local')
@@ -641,18 +647,54 @@ try {
         .input('legacy', sql.NVarChar(255), 'an@moc.local')
         .input('email', sql.NVarChar(255), demoEmail)
         .input('passwordHash', sql.NVarChar(255), passwordHash)
-        .query('UPDATE dbo.Users SET Email = @email, PasswordHash = @passwordHash WHERE Email = @legacy');
+        .input('phone', sql.NVarChar(20), '0901234567')
+        .query(`
+          UPDATE dbo.Users
+          SET Email = @email, PasswordHash = @passwordHash, Role = N'customer',
+              Phone = COALESCE(NULLIF(Phone, N''), @phone)
+          WHERE Email = @legacy
+        `);
     } else {
       await new sql.Request(transaction)
         .input('fullName', sql.NVarChar(80), 'Nguyễn An')
         .input('email', sql.NVarChar(255), demoEmail)
+        .input('phone', sql.NVarChar(20), '0901234567')
         .input('passwordHash', sql.NVarChar(255), passwordHash)
-        .query('INSERT INTO dbo.Users (FullName, Email, PasswordHash) VALUES (@fullName, @email, @passwordHash)');
+        .query(`
+          INSERT INTO dbo.Users (FullName, Email, Phone, PasswordHash, Role)
+          VALUES (@fullName, @email, @phone, @passwordHash, N'customer')
+        `);
     }
   }
 
+  const adminEmail = 'admin@ntshop.local';
+  const adminHash = await bcrypt.hash('admin123', 10);
+  const admin = await new sql.Request(transaction)
+    .input('email', sql.NVarChar(255), adminEmail)
+    .query('SELECT Id FROM dbo.Users WHERE Email = @email');
+  if (admin.recordset.length) {
+    await new sql.Request(transaction)
+      .input('email', sql.NVarChar(255), adminEmail)
+      .input('passwordHash', sql.NVarChar(255), adminHash)
+      .query(`
+        UPDATE dbo.Users
+        SET PasswordHash = @passwordHash, Role = N'admin', FullName = N'Quản trị NT shop'
+        WHERE Email = @email
+      `);
+  } else {
+    await new sql.Request(transaction)
+      .input('fullName', sql.NVarChar(80), 'Quản trị NT shop')
+      .input('email', sql.NVarChar(255), adminEmail)
+      .input('passwordHash', sql.NVarChar(255), adminHash)
+      .query(`
+        INSERT INTO dbo.Users (FullName, Email, PasswordHash, Role)
+        VALUES (@fullName, @email, @passwordHash, N'admin')
+      `);
+  }
+
   await transaction.commit();
-  console.log('Đã nạp danh mục, sản phẩm và tài khoản an@ntshop.local / 123456.');
+  console.log('Đã nạp danh mục, sản phẩm và tài khoản khách an@ntshop.local / 123456.');
+  console.log('Tài khoản admin: admin@ntshop.local / admin123');
   console.log('Chạy lại lệnh này sẽ không ghi đè món bạn đã sửa trong SSMS.');
 } catch (error) {
   await transaction.rollback();
