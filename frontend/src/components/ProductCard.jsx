@@ -44,12 +44,7 @@ export default function ProductCard({ product, priority = false }) {
         </p>
         <div className="price-row">
           <strong className="price">{formatPrice(product.price)}</strong>
-          {hasSale ? (
-            <>
-              <s>{formatPrice(product.originalPrice)}</s>
-              <span className="discount">-{product.discountPercent}%</span>
-            </>
-          ) : null}
+          {hasSale ? <s>{formatPrice(product.originalPrice)}</s> : null}
         </div>
         <Link className="btn-buy" to={`/san-pham/${product.slug}`}>
           Mua ngay

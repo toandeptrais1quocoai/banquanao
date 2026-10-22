@@ -623,16 +623,32 @@ try {
   }
 
   const demoEmail = 'an@ntshop.local';
+  const passwordHash = await bcrypt.hash('123456', 10);
   const demo = await new sql.Request(transaction)
     .input('email', sql.NVarChar(255), demoEmail)
     .query('SELECT Id FROM dbo.Users WHERE Email = @email');
-  if (!demo.recordset.length) {
-    const passwordHash = await bcrypt.hash('123456', 10);
+  if (demo.recordset.length) {
     await new sql.Request(transaction)
-      .input('fullName', sql.NVarChar(80), 'Nguyễn An')
       .input('email', sql.NVarChar(255), demoEmail)
       .input('passwordHash', sql.NVarChar(255), passwordHash)
-      .query('INSERT INTO dbo.Users (FullName, Email, PasswordHash) VALUES (@fullName, @email, @passwordHash)');
+      .query('UPDATE dbo.Users SET PasswordHash = @passwordHash WHERE Email = @email');
+  } else {
+    const legacy = await new sql.Request(transaction)
+      .input('legacy', sql.NVarChar(255), 'an@moc.local')
+      .query('SELECT Id FROM dbo.Users WHERE Email = @legacy');
+    if (legacy.recordset.length) {
+      await new sql.Request(transaction)
+        .input('legacy', sql.NVarChar(255), 'an@moc.local')
+        .input('email', sql.NVarChar(255), demoEmail)
+        .input('passwordHash', sql.NVarChar(255), passwordHash)
+        .query('UPDATE dbo.Users SET Email = @email, PasswordHash = @passwordHash WHERE Email = @legacy');
+    } else {
+      await new sql.Request(transaction)
+        .input('fullName', sql.NVarChar(80), 'Nguyễn An')
+        .input('email', sql.NVarChar(255), demoEmail)
+        .input('passwordHash', sql.NVarChar(255), passwordHash)
+        .query('INSERT INTO dbo.Users (FullName, Email, PasswordHash) VALUES (@fullName, @email, @passwordHash)');
+    }
   }
 
   await transaction.commit();
