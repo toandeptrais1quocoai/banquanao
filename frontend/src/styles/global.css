@@ -3570,10 +3570,45 @@ input:-webkit-autofill {
     grid-template-columns: 1fr;
   }
 
+  /* Không sticky — cuộn xuống thì menu xanh đi lên, không che bảng đơn */
   .admin-aside {
-    position: sticky;
-    top: 0;
-    z-index: 20;
+    position: static;
+    gap: 12px;
+    padding: 14px 12px 12px;
+  }
+
+  .admin-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .admin-nav a {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .admin-aside-foot {
+    margin-top: 0;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .admin-aside-foot p {
+    margin: 0;
+    font-size: 13px;
+  }
+
+  .admin-aside-foot .muted {
+    grid-column: 1 / -1;
+  }
+
+  .admin-top {
+    padding: 12px 14px;
+  }
+
+  .admin-content {
+    padding: 14px 12px 28px;
   }
 
   .admin-stat-grid {
