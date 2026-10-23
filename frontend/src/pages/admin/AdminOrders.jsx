@@ -97,8 +97,14 @@ export default function AdminOrders() {
 
   async function loadOrdersForPrint(ids) {
     const unique = [...new Set(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
-    const results = await Promise.all(unique.map((id) => api.adminOrder(id)));
-    return results.map((item) => item.order);
+    const chunkSize = 5;
+    const orders = [];
+    for (let i = 0; i < unique.length; i += chunkSize) {
+      const chunk = unique.slice(i, i + chunkSize);
+      const results = await Promise.all(chunk.map((id) => api.adminOrder(id)));
+      orders.push(...results.map((item) => item.order));
+    }
+    return orders;
   }
 
   function runPrint() {
@@ -248,6 +254,14 @@ export default function AdminOrders() {
                 Thanh toán:{' '}
                 {selected.paymentMethod === 'QR' ? 'Chuyển khoản QR' : selected.paymentMethod || 'COD'}
               </p>
+              {selected.discountAmount > 0 ? (
+                <p>
+                  Tạm tính {formatPrice(selected.subtotal ?? selected.total + selected.discountAmount)}
+                  {' · '}
+                  Giảm {formatPrice(selected.discountAmount)}
+                  {selected.voucherCode ? ` (${selected.voucherCode})` : ''}
+                </p>
+              ) : null}
               <p>
                 <strong>{formatPrice(selected.total)}</strong>
               </p>

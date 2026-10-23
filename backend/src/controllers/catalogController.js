@@ -14,3 +14,7 @@ export const products = asyncHandler(async (req, res) => {
 export const product = asyncHandler(async (req, res) => {
   res.json({ product: await catalogService.getProduct(req.params.slug) });
 });
+
+export const storefrontVoucher = asyncHandler(async (req, res) => {
+  res.json({ storefront: await catalogService.getStorefrontBanner() });
+});

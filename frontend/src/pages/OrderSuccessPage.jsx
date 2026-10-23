@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { getOrder } from '../api/client';
 import Invoice from '../components/Invoice';
 import PaymentQr from '../components/PaymentQr';
+import { useVisibilityPoll } from '../hooks/useVisibilityPoll';
 import { formatPrice } from '../utils/format';
 import { formatOrderStatus } from '../utils/orderStatus';
+
+const TERMINAL = new Set(['done', 'cancelled']);
 
 function paymentLead(order) {
   if (order.paymentMethod === 'QR') {
@@ -22,41 +25,36 @@ export default function OrderSuccessPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(needsFetch);
 
+  const fetchOrder = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!silent) setLoading(true);
+      try {
+        const data = await getOrder(id);
+        setOrder(data.order);
+        setError('');
+      } catch (err) {
+        if (!silent) setError(err.message);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [id],
+  );
+
   useEffect(() => {
     document.title = `Đơn #${id} — NT shop`;
   }, [id]);
 
   useEffect(() => {
-    let ignore = false;
+    if (needsFetch) fetchOrder();
+  }, [needsFetch, fetchOrder]);
 
-    async function fetchOrder({ silent = false } = {}) {
-      if (!silent) setLoading(true);
-      try {
-        const data = await getOrder(id);
-        if (!ignore) {
-          setOrder(data.order);
-          setError('');
-        }
-      } catch (err) {
-        if (!ignore && !silent) setError(err.message);
-      } finally {
-        if (!ignore && !silent) setLoading(false);
-      }
-    }
+  const shouldPoll = Boolean(order) && !TERMINAL.has(order.status);
 
-    if (needsFetch) {
-      fetchOrder();
-    }
-
-    const timer = window.setInterval(() => fetchOrder({ silent: true }), 8000);
-    const onFocus = () => fetchOrder({ silent: true });
-    window.addEventListener('focus', onFocus);
-    return () => {
-      ignore = true;
-      window.clearInterval(timer);
-      window.removeEventListener('focus', onFocus);
-    };
-  }, [id, needsFetch]);
+  useVisibilityPoll(() => fetchOrder({ silent: true }), {
+    intervalMs: 12000,
+    enabled: shouldPoll,
+  });
 
   if (loading) return <p className="status">Đang lấy đơn…</p>;
   if (error || !order) {

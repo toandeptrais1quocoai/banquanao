@@ -121,6 +121,39 @@ export async function listProducts(categorySlug, search = '') {
   return result.recordset.map(mapProduct);
 }
 
+/** Catalog gọn cho chatbot — ít cột, giới hạn số dòng. */
+export async function listProductsBrief(limit = 60) {
+  const pool = await getPool();
+  const top = Math.min(Math.max(Number(limit) || 60, 10), 100);
+  const result = await pool.request().query(`
+    SELECT TOP (${top})
+      p.Id, p.Name, p.Slug, p.Price, p.Sizes, p.ColorName,
+      p.ImportQty,
+      ${SOLD_SUBQUERY} AS SoldQty,
+      (p.ImportQty - ${SOLD_SUBQUERY}) AS StockQty,
+      c.Name AS CategoryName
+    FROM dbo.Products p
+    JOIN dbo.Categories c ON c.Id = p.CategoryId
+    ORDER BY p.IsFeatured DESC, p.Id DESC
+  `);
+  const countResult = await pool.request().query('SELECT COUNT(*) AS Total FROM dbo.Products');
+  return {
+    productCount: Number(countResult.recordset[0]?.Total) || 0,
+    products: result.recordset.map((row) => ({
+      name: row.Name,
+      slug: row.Slug,
+      category: row.CategoryName,
+      price: row.Price,
+      stock: Math.max(0, Number(row.StockQty) || 0),
+      sizes: String(row.Sizes || '')
+        .split(',')
+        .map((size) => size.trim())
+        .filter(Boolean),
+      colors: row.ColorName ? [row.ColorName] : [],
+    })),
+  };
+}
+
 export async function findProductBySlug(slug) {
   const pool = await getPool();
   const result = await pool

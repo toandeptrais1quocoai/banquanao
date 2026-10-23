@@ -3,6 +3,11 @@ import * as catalog from '../repositories/catalogRepository.js';
 
 const MAX_MESSAGE = 500;
 const MAX_HISTORY = 8;
+const CONTEXT_TTL_MS = 60_000;
+
+let contextCache = null;
+let contextExpiresAt = 0;
+let contextPromise = null;
 
 function text(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -13,24 +18,34 @@ function formatPrice(value) {
 }
 
 async function shopContext() {
-  const [categories, products] = await Promise.all([
-    catalog.listCategories(),
-    catalog.listProducts(),
-  ]);
-  const top = products.slice(0, 40).map((item) => ({
-    name: item.name,
-    slug: item.slug,
-    category: item.categoryName,
-    price: item.price,
-    stock: item.stockQty,
-    sizes: item.sizes,
-    colors: (item.colors || []).map((c) => c.name),
-  }));
-  return {
-    categories: categories.map((c) => `${c.name} (${c.productCount} món)`),
-    products: top,
-    productCount: products.length,
-  };
+  const now = Date.now();
+  if (contextCache && now < contextExpiresAt) {
+    return contextCache;
+  }
+  if (contextPromise) {
+    return contextPromise;
+  }
+
+  contextPromise = (async () => {
+    const [categories, brief] = await Promise.all([
+      catalog.listCategories(),
+      catalog.listProductsBrief(60),
+    ]);
+    const ctx = {
+      categories: categories.map((c) => `${c.name} (${c.productCount} món)`),
+      products: brief.products,
+      productCount: brief.productCount,
+    };
+    contextCache = ctx;
+    contextExpiresAt = Date.now() + CONTEXT_TTL_MS;
+    return ctx;
+  })();
+
+  try {
+    return await contextPromise;
+  } finally {
+    contextPromise = null;
+  }
 }
 
 function findProducts(products, message) {
@@ -39,19 +54,18 @@ function findProducts(products, message) {
     .split(/[^a-z0-9àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ\s]+/i)
     .map((t) => t.trim())
     .filter((t) => t.length >= 2);
+  if (!tokens.length) return [];
 
-  const scored = products
-    .map((item) => {
-      const hay = `${item.name} ${item.category} ${(item.colors || []).join(' ')}`.toLowerCase();
-      let score = 0;
-      for (const token of tokens) {
-        if (hay.includes(token)) score += token.length > 3 ? 3 : 1;
-      }
-      return { item, score };
-    })
-    .filter((row) => row.score > 0)
-    .sort((a, b) => b.score - a.score);
-
+  const scored = [];
+  for (const item of products) {
+    const hay = `${item.name} ${item.category} ${(item.colors || []).join(' ')}`.toLowerCase();
+    let score = 0;
+    for (const token of tokens) {
+      if (hay.includes(token)) score += token.length > 3 ? 3 : 1;
+    }
+    if (score > 0) scored.push({ item, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, 4).map((row) => row.item);
 }
 
@@ -114,7 +128,7 @@ async function llmReply(message, history, ctx) {
     .slice(0, 25)
     .map(
       (p) =>
-        `- ${p.name} | ${formatPrice(p.price)} | ${p.category} | size ${p.sizes.join('/')} | /san-pham/${p.slug}`,
+        `- ${p.name} | ${formatPrice(p.price)} | ${p.category} | size ${(p.sizes || []).join('/')} | /san-pham/${p.slug}`,
     )
     .join('\n');
 

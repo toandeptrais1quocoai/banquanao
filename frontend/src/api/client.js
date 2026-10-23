@@ -110,6 +110,13 @@ export function checkout(body) {
   return request('/api/orders', { method: 'POST', body });
 }
 
+export function previewVoucher(code, subtotal) {
+  return request('/api/orders/preview-voucher', {
+    method: 'POST',
+    body: { code, subtotal },
+  });
+}
+
 export function myOrders() {
   return request('/api/orders');
 }
@@ -206,4 +213,36 @@ export function adminUpdateCustomer(id, body) {
 
 export function adminDeleteCustomer(id) {
   return request(`/api/admin/customers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function adminVouchers() {
+  return request('/api/admin/vouchers');
+}
+
+export function adminCreateVoucher(body) {
+  return request('/api/admin/vouchers', { method: 'POST', body });
+}
+
+export function adminUpdateVoucher(id, body) {
+  return request(`/api/admin/vouchers/${encodeURIComponent(id)}`, { method: 'PATCH', body });
+}
+
+export function adminDeleteVoucher(id) {
+  return request(`/api/admin/vouchers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function adminApplyVoucher(body) {
+  return request('/api/admin/vouchers/apply', { method: 'POST', body });
+}
+
+export function adminGetStorefrontVoucher() {
+  return request('/api/admin/storefront-voucher');
+}
+
+export function adminSetStorefrontVoucher(body) {
+  return request('/api/admin/storefront-voucher', { method: 'PUT', body });
+}
+
+export function storefrontVoucher() {
+  return request('/api/storefront-voucher');
 }

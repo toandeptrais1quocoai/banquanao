@@ -2,23 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { cancelOrder, myOrders } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { formatPrice } from '../utils/format';
+import { useVisibilityPoll } from '../hooks/useVisibilityPoll';
+import { formatDateTime, formatPrice } from '../utils/format';
 import { canCustomerCancel, formatOrderStatus } from '../utils/orderStatus';
-
-function formatWhen(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(date);
-}
 
 export default function MyOrdersPage() {
   const { user, ready } = useAuth();
@@ -45,16 +31,14 @@ export default function MyOrdersPage() {
   }, []);
 
   useEffect(() => {
-    if (!ready || !user) return undefined;
+    if (!ready || !user) return;
     load();
-    const timer = window.setInterval(() => load({ silent: true }), 8000);
-    const onFocus = () => load({ silent: true });
-    window.addEventListener('focus', onFocus);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener('focus', onFocus);
-    };
   }, [ready, user, load]);
+
+  useVisibilityPoll(() => load({ silent: true }), {
+    intervalMs: 12000,
+    enabled: Boolean(ready && user),
+  });
 
   async function onCancel(order) {
     if (!canCustomerCancel(order.status)) return;
@@ -113,7 +97,7 @@ export default function MyOrdersPage() {
                 <div className="order-track-top">
                   <div>
                     <strong>Đơn #{order.id}</strong>
-                    <span>{formatWhen(order.createdAt)}</span>
+                    <span>{formatDateTime(order.createdAt)}</span>
                   </div>
                   <em className={`order-status order-status-${order.status}`}>
                     {formatOrderStatus(order.status)}
@@ -122,6 +106,9 @@ export default function MyOrdersPage() {
                 <p>
                   {order.paymentMethod === 'QR' ? 'Chuyển khoản QR' : 'COD'} ·{' '}
                   {formatPrice(order.total)}
+                  {order.discountAmount > 0
+                    ? ` · đã giảm ${formatPrice(order.discountAmount)}${order.voucherCode ? ` (${order.voucherCode})` : ''}`
+                    : ''}
                 </p>
                 <p className="muted">{order.address}</p>
                 <div className="order-track-actions">

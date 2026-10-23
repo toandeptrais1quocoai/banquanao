@@ -170,7 +170,8 @@ export async function getStats() {
 export async function listOrders() {
   const pool = await getPool();
   const result = await pool.request().query(`
-    SELECT o.Id, o.FullName, o.Phone, o.Address, o.PaymentMethod, o.Status, o.Total, o.CreatedAt,
+    SELECT o.Id, o.FullName, o.Phone, o.Address, o.PaymentMethod, o.Status,
+           o.Total, o.Subtotal, o.DiscountAmount, o.VoucherCode, o.CreatedAt,
            u.Email AS UserEmail
     FROM dbo.Orders o
     LEFT JOIN dbo.Users u ON u.Id = o.UserId
@@ -184,6 +185,9 @@ export async function listOrders() {
     paymentMethod: row.PaymentMethod,
     status: row.Status,
     total: row.Total,
+    subtotal: row.Subtotal != null ? row.Subtotal : row.Total,
+    discountAmount: row.DiscountAmount || 0,
+    voucherCode: row.VoucherCode || null,
     createdAt: row.CreatedAt,
     userEmail: row.UserEmail || null,
   }));

@@ -1,6 +1,9 @@
 import { getPool, sql } from '../config/db.js';
 
 function mapItem(row) {
+  const price = row.Price;
+  const originalPrice =
+    row.OriginalPrice && row.OriginalPrice > price ? row.OriginalPrice : null;
   return {
     id: row.Id,
     productId: row.ProductId,
@@ -9,11 +12,12 @@ function mapItem(row) {
     quantity: row.Quantity,
     name: row.Name,
     slug: row.Slug,
-    price: row.Price,
+    price,
+    originalPrice,
     imageUrl: row.ImageUrl,
     colorName: row.Color || row.ColorName,
     colorHex: row.ColorHex?.trim(),
-    lineTotal: row.Quantity * row.Price,
+    lineTotal: row.Quantity * price,
   };
 }
 
@@ -25,7 +29,7 @@ export async function listByUser(userId) {
     .query(`
       SELECT
         ci.Id, ci.ProductId, ci.Size, ci.Color, ci.Quantity,
-        p.Name, p.Slug, p.Price, p.ImageUrl, p.ColorName, p.ColorHex
+        p.Name, p.Slug, p.Price, p.OriginalPrice, p.ImageUrl, p.ColorName, p.ColorHex
       FROM dbo.CartItems ci
       JOIN dbo.Products p ON p.Id = ci.ProductId
       WHERE ci.UserId = @userId
@@ -43,7 +47,7 @@ export async function findByIdForUser(id, userId) {
     .query(`
       SELECT
         ci.Id, ci.ProductId, ci.Size, ci.Color, ci.Quantity,
-        p.Name, p.Slug, p.Price, p.ImageUrl, p.ColorName, p.ColorHex
+        p.Name, p.Slug, p.Price, p.OriginalPrice, p.ImageUrl, p.ColorName, p.ColorHex
       FROM dbo.CartItems ci
       JOIN dbo.Products p ON p.Id = ci.ProductId
       WHERE ci.Id = @id AND ci.UserId = @userId

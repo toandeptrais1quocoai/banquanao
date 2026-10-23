@@ -23,4 +23,13 @@ router.post('/customers', adminController.createCustomer);
 router.patch('/customers/:id', adminController.updateCustomer);
 router.delete('/customers/:id', adminController.removeCustomer);
 
+router.get('/vouchers', adminController.listVouchers);
+router.post('/vouchers', adminController.createVoucher);
+router.post('/vouchers/apply', adminController.applyVoucher);
+router.post('/vouchers/preview', adminController.previewVoucher);
+router.get('/storefront-voucher', adminController.getStorefrontVoucher);
+router.put('/storefront-voucher', adminController.setStorefrontVoucher);
+router.patch('/vouchers/:id', adminController.updateVoucher);
+router.delete('/vouchers/:id', adminController.removeVoucher);
+
 export default router;

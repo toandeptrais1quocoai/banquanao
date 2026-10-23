@@ -10,6 +10,7 @@ const emptyForm = {
   description: '',
   price: '',
   originalPrice: '',
+  discountPercent: '',
   imageUrl: '/images/ao-thun.jpg',
   colorName: 'Đen',
   colorHex: '#111111',
@@ -17,6 +18,20 @@ const emptyForm = {
   material: 'Cotton',
   isFeatured: false,
 };
+
+function percentFromPrices(price, originalPrice) {
+  const p = Number(price);
+  const o = Number(originalPrice);
+  if (!p || !o || o <= p) return '';
+  return String(Math.round(((o - p) / o) * 100));
+}
+
+function originalFromPercent(price, percent) {
+  const p = Number(price);
+  const pct = Number(percent);
+  if (!p || !pct || pct < 1 || pct >= 100) return '';
+  return String(Math.round(p / (1 - pct / 100)));
+}
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
@@ -80,6 +95,9 @@ export default function AdminProducts() {
       description: product.description || '',
       price: String(product.price),
       originalPrice: product.originalPrice ? String(product.originalPrice) : '',
+      discountPercent: product.discountPercent
+        ? String(product.discountPercent)
+        : percentFromPrices(product.price, product.originalPrice),
       imageUrl: product.imageUrl,
       colorName: product.colorName,
       colorHex: product.colorHex || '#cccccc',
@@ -91,7 +109,25 @@ export default function AdminProducts() {
   }
 
   function setField(key, value) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'discountPercent') {
+        const cleaned = String(value).replace(/\D/g, '');
+        next.discountPercent = cleaned;
+        if (cleaned === '' || Number(cleaned) < 1) {
+          next.originalPrice = '';
+        } else if (next.price) {
+          next.originalPrice = originalFromPercent(next.price, cleaned);
+        }
+      }
+      if (key === 'price' && next.discountPercent) {
+        next.originalPrice = originalFromPercent(value, next.discountPercent);
+      }
+      if (key === 'originalPrice') {
+        next.discountPercent = percentFromPrices(next.price, value);
+      }
+      return next;
+    });
   }
 
   async function onSubmit(event) {
@@ -143,7 +179,9 @@ export default function AdminProducts() {
       <div className="admin-page-head">
         <div>
           <h1>Sản phẩm</h1>
-          <p>Danh mục bán hàng: tên, giá, ảnh, danh mục. Kho nhập/tồn xem ở mục Kho.</p>
+          <p>
+            Đặt giảm % từng sản phẩm (10%, 15%…) để hiện trên web khách. Kho nhập/tồn xem ở mục Kho.
+          </p>
         </div>
         <div className="admin-head-actions">
           <Link className="btn btn-line" to="/admin/kho">
@@ -252,7 +290,7 @@ export default function AdminProducts() {
             </label>
             <div className="admin-form-row">
               <label>
-                Giá bán
+                Giá bán (sau giảm)
                 <input
                   required
                   type="number"
@@ -262,15 +300,35 @@ export default function AdminProducts() {
                 />
               </label>
               <label>
-                Giá gốc (niêm yết)
+                Giảm % trên web khách
                 <input
                   type="number"
                   min="0"
-                  value={form.originalPrice}
-                  onChange={(e) => setField('originalPrice', e.target.value)}
+                  max="99"
+                  inputMode="numeric"
+                  placeholder="VD: 10 hoặc 15"
+                  value={form.discountPercent}
+                  onChange={(e) => setField('discountPercent', e.target.value)}
                 />
               </label>
             </div>
+            <label>
+              Giá gốc / niêm yết (tự tính từ %, hoặc nhập tay)
+              <input
+                type="number"
+                min="0"
+                value={form.originalPrice}
+                onChange={(e) => setField('originalPrice', e.target.value)}
+              />
+            </label>
+            {form.discountPercent && form.originalPrice ? (
+              <p className="muted">
+                Web khách sẽ hiện giá {formatPrice(Number(form.price) || 0)}, gạch{' '}
+                {formatPrice(Number(form.originalPrice) || 0)}, badge -{form.discountPercent}%.
+              </p>
+            ) : (
+              <p className="muted">Để trống % nếu bán giá thường (không giảm).</p>
+            )}
             <label>
               Ảnh (đường dẫn)
               <input value={form.imageUrl} onChange={(e) => setField('imageUrl', e.target.value)} />

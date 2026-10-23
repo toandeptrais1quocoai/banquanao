@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { checkout, getPayment } from '../api/client';
+import { checkout, getPayment, previewVoucher } from '../api/client';
 import { TextField } from '../components/Field';
 import PaymentQr from '../components/PaymentQr';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +18,10 @@ export default function CheckoutPage() {
   const [note, setNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [paymentInfo, setPaymentInfo] = useState(null);
+  const [voucherInput, setVoucherInput] = useState('');
+  const [voucher, setVoucher] = useState(null);
+  const [voucherError, setVoucherError] = useState('');
+  const [voucherBusy, setVoucherBusy] = useState(false);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [pending, setPending] = useState(false);
@@ -35,7 +39,9 @@ export default function CheckoutPage() {
   }, [cart.items, selectedIds]);
 
   const checkoutCount = checkoutItems.reduce((sum, item) => sum + item.quantity, 0);
-  const checkoutTotal = checkoutItems.reduce((sum, item) => sum + item.lineTotal, 0);
+  const checkoutSubtotal = checkoutItems.reduce((sum, item) => sum + item.lineTotal, 0);
+  const discountAmount = voucher?.discountAmount || 0;
+  const checkoutTotal = Math.max(0, checkoutSubtotal - discountAmount);
 
   useEffect(() => {
     document.title = 'Thanh toán — NT shop';
@@ -63,6 +69,61 @@ export default function CheckoutPage() {
       ignore = true;
     };
   }, [checkoutTotal]);
+
+  useEffect(() => {
+    if (!voucher) return;
+    let ignore = false;
+    previewVoucher(voucher.code, checkoutSubtotal)
+      .then((data) => {
+        if (!ignore) {
+          setVoucher({
+            code: data.voucher.code,
+            discountAmount: data.discountAmount,
+          });
+          setVoucherError('');
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setVoucher(null);
+          setVoucherError(err.message);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [checkoutSubtotal, voucher?.code]);
+
+  async function applyVoucherCode(event) {
+    event.preventDefault();
+    const code = voucherInput.trim();
+    if (!code) {
+      setVoucher(null);
+      setVoucherError('');
+      return;
+    }
+    setVoucherBusy(true);
+    setVoucherError('');
+    try {
+      const data = await previewVoucher(code, checkoutSubtotal);
+      setVoucher({
+        code: data.voucher.code,
+        discountAmount: data.discountAmount,
+      });
+      setVoucherInput(data.voucher.code);
+    } catch (err) {
+      setVoucher(null);
+      setVoucherError(err.message);
+    } finally {
+      setVoucherBusy(false);
+    }
+  }
+
+  function clearVoucher() {
+    setVoucher(null);
+    setVoucherInput('');
+    setVoucherError('');
+  }
 
   if (loading) {
     return <p className="status">Đang lấy giỏ hàng…</p>;
@@ -112,6 +173,7 @@ export default function CheckoutPage() {
         address: address.trim(),
         note: note.trim(),
         paymentMethod,
+        voucherCode: voucher?.code || undefined,
       };
       if (user) {
         payload.itemIds = checkoutItems.map((item) => item.id);
@@ -192,6 +254,37 @@ export default function CheckoutPage() {
             />
           </label>
 
+          <div className="field voucher-field">
+            <span>Mã voucher (không bắt buộc)</span>
+            <div className="voucher-row">
+              <input
+                value={voucherInput}
+                onChange={(event) => setVoucherInput(event.target.value.toUpperCase())}
+                placeholder="VD: SALE10"
+                disabled={voucherBusy || pending}
+              />
+              <button
+                className="btn btn-line"
+                type="button"
+                disabled={voucherBusy || pending}
+                onClick={applyVoucherCode}
+              >
+                {voucherBusy ? '…' : 'Áp dụng'}
+              </button>
+              {voucher ? (
+                <button className="btn btn-line" type="button" onClick={clearVoucher}>
+                  Bỏ
+                </button>
+              ) : null}
+            </div>
+            {voucherError ? <small>{voucherError}</small> : null}
+            {voucher ? (
+              <small className="voucher-ok">
+                Đã áp dụng {voucher.code} · giảm {formatPrice(voucher.discountAmount)}
+              </small>
+            ) : null}
+          </div>
+
           <fieldset className="pay-box">
             <legend>Hình thức thanh toán</legend>
             <label className="pay-option">
@@ -260,6 +353,16 @@ export default function CheckoutPage() {
           </ul>
           <div className="summary-row">
             <span>{checkoutCount} món</span>
+            <strong>{formatPrice(checkoutSubtotal)}</strong>
+          </div>
+          {discountAmount > 0 ? (
+            <div className="summary-row">
+              <span>Giảm ({voucher.code})</span>
+              <strong>-{formatPrice(discountAmount)}</strong>
+            </div>
+          ) : null}
+          <div className="summary-row">
+            <span>Thanh toán</span>
             <strong>{formatPrice(checkoutTotal)}</strong>
           </div>
         </aside>
@@ -293,6 +396,14 @@ export default function CheckoutPage() {
                 <dt>Thanh toán</dt>
                 <dd>{payLabel}</dd>
               </div>
+              {voucher ? (
+                <div>
+                  <dt>Voucher</dt>
+                  <dd>
+                    {voucher.code} (−{formatPrice(voucher.discountAmount)})
+                  </dd>
+                </div>
+              ) : null}
             </dl>
             <ul className="checkout-items">
               {checkoutItems.map((item) => (
@@ -308,6 +419,18 @@ export default function CheckoutPage() {
                 </li>
               ))}
             </ul>
+            {discountAmount > 0 ? (
+              <div className="summary-row">
+                <span>Tạm tính</span>
+                <strong>{formatPrice(checkoutSubtotal)}</strong>
+              </div>
+            ) : null}
+            {discountAmount > 0 ? (
+              <div className="summary-row">
+                <span>Giảm</span>
+                <strong>-{formatPrice(discountAmount)}</strong>
+              </div>
+            ) : null}
             <div className="summary-row">
               <span>{checkoutCount} món</span>
               <strong>{formatPrice(checkoutTotal)}</strong>

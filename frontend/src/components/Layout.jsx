@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { categories as fetchCategories } from '../api/client';
-import ChatBee from './ChatBee';
 import IntroSplash from './IntroSplash';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { givenName } from '../utils/format';
+
+const ChatBee = lazy(() => import('./ChatBee'));
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -195,7 +196,9 @@ export default function Layout() {
         </div>
       </main>
 
-      <ChatBee />
+      <Suspense fallback={null}>
+        <ChatBee />
+      </Suspense>
 
       <footer className="site-footer shop-footer">
         <div className="wrap footer-grid">

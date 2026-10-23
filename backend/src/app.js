@@ -17,7 +17,7 @@ export function createApp() {
     .map((value) => value.trim())
     .filter(Boolean);
   app.use(cors({ origin: origins.length === 1 ? origins[0] : origins }));
-  app.use(express.json());
+  app.use(express.json({ limit: '256kb' }));
 
   app.get('/api/health', (req, res) => {
     res.json({ ok: true });

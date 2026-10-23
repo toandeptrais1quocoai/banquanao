@@ -7,6 +7,7 @@ const links = [
   { to: '/admin/san-pham', label: 'Sản phẩm' },
   { to: '/admin/kho', label: 'Kho' },
   { to: '/admin/don-hang', label: 'Đơn hàng' },
+  { to: '/admin/voucher', label: 'Voucher' },
   { to: '/admin/khach-hang', label: 'Khách hàng' },
 ];
 

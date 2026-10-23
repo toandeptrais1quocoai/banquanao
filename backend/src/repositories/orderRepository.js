@@ -7,6 +7,9 @@ export async function createOrder(order, items) {
 
   try {
     const initialStatus = order.status || 'pending';
+    const subtotal = order.subtotal != null ? order.subtotal : order.total;
+    const discountAmount = order.discountAmount || 0;
+    const voucherCode = order.voucherCode || null;
     const orderResult = await new sql.Request(transaction)
       .input('userId', sql.Int, order.userId)
       .input('fullName', sql.NVarChar(80), order.fullName)
@@ -15,11 +18,21 @@ export async function createOrder(order, items) {
       .input('note', sql.NVarChar(400), order.note)
       .input('paymentMethod', sql.NVarChar(30), order.paymentMethod)
       .input('status', sql.NVarChar(30), initialStatus)
+      .input('subtotal', sql.Int, subtotal)
+      .input('discountAmount', sql.Int, discountAmount)
+      .input('voucherCode', sql.NVarChar(40), voucherCode)
       .input('total', sql.Int, order.total)
       .query(`
-        INSERT INTO dbo.Orders (UserId, FullName, Phone, Address, Note, PaymentMethod, Status, Total)
-        OUTPUT INSERTED.Id, INSERTED.Status, INSERTED.CreatedAt, INSERTED.Total
-        VALUES (@userId, @fullName, @phone, @address, @note, @paymentMethod, @status, @total)
+        INSERT INTO dbo.Orders (
+          UserId, FullName, Phone, Address, Note, PaymentMethod, Status,
+          Subtotal, DiscountAmount, VoucherCode, Total
+        )
+        OUTPUT INSERTED.Id, INSERTED.Status, INSERTED.CreatedAt, INSERTED.Total,
+               INSERTED.Subtotal, INSERTED.DiscountAmount, INSERTED.VoucherCode
+        VALUES (
+          @userId, @fullName, @phone, @address, @note, @paymentMethod, @status,
+          @subtotal, @discountAmount, @voucherCode, @total
+        )
       `);
 
     const created = orderResult.recordset[0];
@@ -94,6 +107,9 @@ export async function createOrder(order, items) {
       id: created.Id,
       status: created.Status,
       total: created.Total,
+      subtotal: created.Subtotal != null ? created.Subtotal : created.Total,
+      discountAmount: created.DiscountAmount || 0,
+      voucherCode: created.VoucherCode || null,
       createdAt: created.CreatedAt,
     };
   } catch (error) {
@@ -125,7 +141,8 @@ export async function listByUser(userId) {
     .request()
     .input('userId', sql.Int, userId)
     .query(`
-      SELECT Id, FullName, Phone, Address, Note, PaymentMethod, Status, Total, CreatedAt
+      SELECT Id, FullName, Phone, Address, Note, PaymentMethod, Status,
+             Total, Subtotal, DiscountAmount, VoucherCode, CreatedAt
       FROM dbo.Orders
       WHERE UserId = @userId
       ORDER BY Id DESC
@@ -139,6 +156,9 @@ export async function listByUser(userId) {
     paymentMethod: row.PaymentMethod,
     status: row.Status,
     total: row.Total,
+    subtotal: row.Subtotal != null ? row.Subtotal : row.Total,
+    discountAmount: row.DiscountAmount || 0,
+    voucherCode: row.VoucherCode || null,
     createdAt: row.CreatedAt,
   }));
 }
@@ -149,7 +169,8 @@ export async function findById(id) {
     .request()
     .input('id', sql.Int, id)
     .query(`
-      SELECT Id, UserId, FullName, Phone, Address, Note, PaymentMethod, Status, Total, CreatedAt
+      SELECT Id, UserId, FullName, Phone, Address, Note, PaymentMethod, Status,
+             Total, Subtotal, DiscountAmount, VoucherCode, CreatedAt
       FROM dbo.Orders
       WHERE Id = @id
     `);
@@ -176,6 +197,9 @@ export async function findById(id) {
     paymentMethod: order.PaymentMethod,
     status: order.Status,
     total: order.Total,
+    subtotal: order.Subtotal != null ? order.Subtotal : order.Total,
+    discountAmount: order.DiscountAmount || 0,
+    voucherCode: order.VoucherCode || null,
     createdAt: order.CreatedAt,
     items: itemsResult.recordset.map((row) => ({
       id: row.Id,

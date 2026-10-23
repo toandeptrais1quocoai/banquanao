@@ -107,6 +107,18 @@ export default function Invoice({ order }) {
           {' · '}
           Đặt lúc {formatOrderTime(order.createdAt)}
         </p>
+        {order.discountAmount > 0 ? (
+          <>
+            <p className="invoice-total">
+              <span>Tạm tính</span>
+              <strong>{formatPrice(order.subtotal ?? order.total + order.discountAmount)}</strong>
+            </p>
+            <p className="invoice-total">
+              <span>Giảm{order.voucherCode ? ` (${order.voucherCode})` : ''}</span>
+              <strong>-{formatPrice(order.discountAmount)}</strong>
+            </p>
+          </>
+        ) : null}
         <p className="invoice-total">
           <span>Tổng cộng</span>
           <strong>{formatPrice(order.total)}</strong>

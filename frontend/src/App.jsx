@@ -20,6 +20,7 @@ import AdminRevenue from './pages/admin/AdminRevenue';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminInventory from './pages/admin/AdminInventory';
 import AdminOrders from './pages/admin/AdminOrders';
+import AdminVouchers from './pages/admin/AdminVouchers';
 import AdminCustomers from './pages/admin/AdminCustomers';
 
 function ScrollToTop() {
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="san-pham" element={<AdminProducts />} />
             <Route path="kho" element={<AdminInventory />} />
             <Route path="don-hang" element={<AdminOrders />} />
+            <Route path="voucher" element={<AdminVouchers />} />
             <Route path="khach-hang" element={<AdminCustomers />} />
           </Route>
         </Route>

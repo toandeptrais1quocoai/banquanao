@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { categories as fetchCategories, products as fetchProducts } from '../api/client';
+import {
+  categories as fetchCategories,
+  products as fetchProducts,
+  storefrontVoucher as fetchStorefrontVoucher,
+} from '../api/client';
 import ProductCard from '../components/ProductCard';
 import { formatPrice } from '../utils/format';
 
@@ -37,6 +41,7 @@ export default function HomePage() {
   const search = params.get('q') || '';
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [storefront, setStorefront] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [slide, setSlide] = useState(0);
@@ -53,9 +58,11 @@ export default function HomePage() {
 
   useEffect(() => {
     let ignore = false;
-    fetchCategories()
-      .then((data) => {
-        if (!ignore) setCategories(data.categories);
+    Promise.all([fetchCategories(), fetchStorefrontVoucher()])
+      .then(([categoryData, storeData]) => {
+        if (ignore) return;
+        setCategories(categoryData.categories);
+        setStorefront(storeData.storefront?.active ? storeData.storefront : null);
       })
       .catch((err) => {
         if (!ignore) setError(err.message);
@@ -127,6 +134,16 @@ export default function HomePage() {
 
   return (
     <div className="home-shop">
+      {storefront?.active && storefront.percent ? (
+        <div className="home-store-banner" role="status">
+          <div>
+            <strong>{storefront.code || `SHOP${storefront.percent}`}</strong>
+            <span> — Giảm {storefront.percent}% mọi sản phẩm trên gian hàng</span>
+          </div>
+          <em>−{storefront.percent}%</em>
+        </div>
+      ) : null}
+
       {!filteredMode ? (
         <>
           <section className="hero-slider" aria-label="Khuyến mãi">

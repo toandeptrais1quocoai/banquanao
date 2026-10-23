@@ -55,13 +55,11 @@ export default function ChatBee() {
     setPending(true);
     setError('');
     try {
-      const data = await sendChat(
-        text,
-        nextHistory
-          .filter((item) => item !== WELCOME)
-          .slice(0, -1)
-          .map((item) => ({ role: item.role, content: item.content })),
-      );
+      const history = nextHistory
+        .slice(1, -1)
+        .slice(-8)
+        .map((item) => ({ role: item.role, content: item.content }));
+      const data = await sendChat(text, history);
       setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
     } catch (err) {
       setError(err.message);

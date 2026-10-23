@@ -1,6 +1,8 @@
 import { AppError } from '../utils/errors.js';
 import * as cart from '../repositories/cartRepository.js';
 import * as catalog from '../repositories/catalogRepository.js';
+import * as shopSettings from '../repositories/shopSettingsRepository.js';
+import { applyStorefrontCartItem, applyStorefrontPrice } from '../utils/pricing.js';
 
 const MAX_QTY = 20;
 
@@ -8,6 +10,16 @@ function summarize(items) {
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const total = items.reduce((sum, item) => sum + item.lineTotal, 0);
   return { items, itemCount, total };
+}
+
+async function pricedCartItems(items) {
+  const store = await shopSettings.getStorefrontVoucher();
+  return items.map((item) => applyStorefrontCartItem(item, store));
+}
+
+async function pricedProduct(product) {
+  const store = await shopSettings.getStorefrontVoucher();
+  return applyStorefrontPrice(product, store);
 }
 
 function parseQuantity(value, { required = true } = {}) {
@@ -53,7 +65,7 @@ function colorMeta(product, colorName) {
 }
 
 export async function getCart(userId) {
-  return summarize(await cart.listByUser(userId));
+  return summarize(await pricedCartItems(await cart.listByUser(userId)));
 }
 
 export async function addItem(userId, body) {
@@ -61,7 +73,7 @@ export async function addItem(userId, body) {
   if (!Number.isInteger(productId) || productId < 1) {
     throw new AppError(400, 'Món này không hợp lệ.');
   }
-  const product = await catalog.findProductById(productId);
+  const product = await pricedProduct(await catalog.findProductById(productId));
   if (!product) {
     throw new AppError(404, 'Không thấy món này trong gian hàng.');
   }
@@ -76,7 +88,7 @@ export async function addItem(userId, body) {
   } else {
     await cart.insertItem(userId, productId, size, color, quantity);
   }
-  return summarize(await cart.listByUser(userId));
+  return summarize(await pricedCartItems(await cart.listByUser(userId)));
 }
 
 export async function updateItem(userId, itemId, body) {
@@ -90,7 +102,7 @@ export async function updateItem(userId, itemId, body) {
     throw new AppError(404, 'Không thấy dòng này trong giỏ.');
   }
   await cart.updateQuantity(id, userId, quantity);
-  return summarize(await cart.listByUser(userId));
+  return summarize(await pricedCartItems(await cart.listByUser(userId)));
 }
 
 export async function removeItem(userId, itemId) {
@@ -102,7 +114,7 @@ export async function removeItem(userId, itemId) {
   if (!ok) {
     throw new AppError(404, 'Không thấy dòng này trong giỏ.');
   }
-  return summarize(await cart.listByUser(userId));
+  return summarize(await pricedCartItems(await cart.listByUser(userId)));
 }
 
 export async function clearCart(userId) {
@@ -119,7 +131,7 @@ export async function mergeGuestItems(userId, body) {
   for (const entry of raw) {
     const productId = Number(entry.productId);
     if (!Number.isInteger(productId) || productId < 1) continue;
-    const product = await catalog.findProductById(productId);
+    const product = await pricedProduct(await catalog.findProductById(productId));
     if (!product) continue;
     let size;
     let color;
@@ -144,13 +156,16 @@ export async function mergeGuestItems(userId, body) {
     }
   }
 
-  return summarize(await cart.listByUser(userId));
+  return summarize(await pricedCartItems(await cart.listByUser(userId)));
 }
 
 export async function hydrateGuestItems(rawItems) {
   const entries = Array.isArray(rawItems) ? rawItems : [];
+  const store = await shopSettings.getStorefrontVoucher();
   const products = await catalog.findProductsByIds(entries.map((item) => item.productId));
-  const byId = new Map(products.map((product) => [product.id, product]));
+  const byId = new Map(
+    products.map((product) => [product.id, applyStorefrontPrice(product, store)]),
+  );
   const items = [];
 
   for (const entry of entries) {
@@ -178,6 +193,7 @@ export async function hydrateGuestItems(rawItems) {
       name: product.name,
       slug: product.slug,
       price: product.price,
+      originalPrice: product.originalPrice || null,
       imageUrl: meta.imageUrl || product.imageUrl,
       colorName: color,
       colorHex: meta.hex || product.colorHex,

@@ -1,5 +1,6 @@
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import * as adminService from '../services/adminService.js';
+import * as voucherService from '../services/voucherService.js';
 
 export const dashboard = asyncHandler(async (req, res) => {
   res.json({ stats: await adminService.dashboard() });
@@ -65,4 +66,38 @@ export const updateCustomer = asyncHandler(async (req, res) => {
 
 export const removeCustomer = asyncHandler(async (req, res) => {
   res.json(await adminService.removeCustomer(req.params.id));
+});
+
+export const listVouchers = asyncHandler(async (req, res) => {
+  res.json({ vouchers: await voucherService.listVouchers() });
+});
+
+export const createVoucher = asyncHandler(async (req, res) => {
+  res.status(201).json({ voucher: await voucherService.createVoucher(req.body || {}) });
+});
+
+export const updateVoucher = asyncHandler(async (req, res) => {
+  res.json({ voucher: await voucherService.updateVoucher(req.params.id, req.body || {}) });
+});
+
+export const removeVoucher = asyncHandler(async (req, res) => {
+  res.json(await voucherService.removeVoucher(req.params.id));
+});
+
+export const applyVoucher = asyncHandler(async (req, res) => {
+  res.json(await voucherService.applyVoucher(req.body || {}));
+});
+
+export const previewVoucher = asyncHandler(async (req, res) => {
+  res.json(
+    await voucherService.previewVoucher(req.body?.code, req.body?.subtotal),
+  );
+});
+
+export const getStorefrontVoucher = asyncHandler(async (req, res) => {
+  res.json({ storefront: await voucherService.getStorefrontVoucher() });
+});
+
+export const setStorefrontVoucher = asyncHandler(async (req, res) => {
+  res.json({ storefront: await voucherService.setStorefrontVoucher(req.body || {}) });
 });

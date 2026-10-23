@@ -4,6 +4,10 @@ import * as cart from '../repositories/cartRepository.js';
 import * as catalog from '../repositories/catalogRepository.js';
 import * as orders from '../repositories/orderRepository.js';
 import * as users from '../repositories/userRepository.js';
+import * as voucherService from './voucherService.js';
+import * as voucherRepo from '../repositories/voucherRepository.js';
+import * as shopSettings from '../repositories/shopSettingsRepository.js';
+import { applyStorefrontPrice } from '../utils/pricing.js';
 
 const PHONE_PATTERN = /^(0|\+84)[0-9]{8,10}$/;
 
@@ -12,8 +16,11 @@ function text(value) {
 }
 
 async function enrichLines(entries) {
+  const store = await shopSettings.getStorefrontVoucher();
   const products = await catalog.findProductsByIds(entries.map((item) => item.productId));
-  const byId = new Map(products.map((product) => [product.id, product]));
+  const byId = new Map(
+    products.map((product) => [product.id, applyStorefrontPrice(product, store)]),
+  );
   const lines = [];
   const needed = new Map();
 
@@ -115,7 +122,10 @@ export async function checkout(userId, body) {
     lines = await resolveGuestItems(body.items);
   }
 
-  const total = lines.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const subtotal = lines.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const voucherInfo = await voucherService.resolveCheckoutVoucher(body.voucherCode, subtotal);
+  const total = subtotal - voucherInfo.discountAmount;
+
   let created;
   try {
     created = await orders.createOrder(
@@ -127,6 +137,9 @@ export async function checkout(userId, body) {
         note: note || null,
         paymentMethod,
         status: 'pending',
+        subtotal,
+        discountAmount: voucherInfo.discountAmount,
+        voucherCode: voucherInfo.voucherCode,
         total,
         cartItemIds,
       },
@@ -137,6 +150,10 @@ export async function checkout(userId, body) {
       throw new AppError(400, error.message);
     }
     throw error;
+  }
+
+  if (voucherInfo.voucherId) {
+    await voucherRepo.bumpUsedCount(voucherInfo.voucherId, 1);
   }
 
   if (userId) {
@@ -158,6 +175,9 @@ export async function checkout(userId, body) {
       address,
       note: note || null,
       paymentMethod,
+      subtotal,
+      discountAmount: voucherInfo.discountAmount,
+      voucherCode: voucherInfo.voucherCode,
       transferCode: paymentMethod === 'QR' ? transferCode : null,
       qrImageUrl,
       payment: paymentMethod === 'QR' ? { ...payment, qrImageUrl } : null,
